@@ -2,11 +2,21 @@
 
 import type { MetricKey } from "./constants";
 
-export type GeoType = "county" | "city" | "zip";
+export type GeoType = "county" | "city" | "zip" | "custom";
 export type ChartType = "line" | "bar";
 export type StatType = "median" | "average";
 export type YearRange = 1 | 3 | 5 | 10 | 20;
 export type RollingWindow = 1 | 3 | 6 | 12;
+
+export interface DrawnShape {
+  id: string;
+  type: "polygon" | "circle" | "rectangle";
+  geoJSON: GeoJSON.Geometry;
+  /** For circles, the radius in meters */
+  radiusMeters?: number;
+  /** Human-readable label */
+  label: string;
+}
 
 export interface AreaConfig {
   id: string;
@@ -14,6 +24,8 @@ export interface AreaConfig {
   geoType: GeoType;
   geoValues: string[];
   name: string;
+  /** Custom drawn shape (when geoType === "custom") */
+  drawnShape?: DrawnShape;
 }
 
 export interface FilterState {
@@ -96,4 +108,21 @@ export interface DashboardState {
   // Map visibility
   mapVisible: boolean;
   toggleMap: () => void;
+
+  // Draw mode
+  drawMode: boolean;
+  toggleDrawMode: () => void;
+
+  // Drawn shapes (temporary, before saving to an area)
+  drawnShapes: DrawnShape[];
+  addDrawnShape: (shape: DrawnShape) => void;
+  removeDrawnShape: (id: string) => void;
+  clearDrawnShapes: () => void;
+
+  // Save a drawn shape as a custom area
+  saveDrawnShapeAsArea: (shape: DrawnShape, name: string) => void;
+
+  // Saved custom areas (persisted drawn shapes)
+  savedCustomAreas: { name: string; shape: DrawnShape }[];
+  removeSavedCustomArea: (shapeId: string) => void;
 }

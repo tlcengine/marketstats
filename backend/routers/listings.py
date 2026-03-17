@@ -42,6 +42,10 @@ async def get_listings(
     max_price: Optional[float] = Query(None),
     property_type: Optional[str] = Query(None),
     bedrooms: Optional[int] = Query(None),
+    date_from: Optional[str] = Query(None, description="Start date YYYY-MM-DD"),
+    date_to: Optional[str] = Query(None, description="End date YYYY-MM-DD"),
+    sort_by: Optional[str] = Query("CloseDate", description="Field to sort by"),
+    sort_order: Optional[str] = Query("desc", description="asc or desc"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
 ):
@@ -79,11 +83,34 @@ async def get_listings(
         df = df[df["PropertyType"] == property_type]
     if bedrooms is not None:
         df = df[pd.to_numeric(df["BedroomsTotal"], errors="coerce") >= bedrooms]
+    if date_from:
+        try:
+            dt_from = pd.to_datetime(date_from)
+            df = df[df["CloseDate"] >= dt_from]
+        except Exception:
+            pass
+    if date_to:
+        try:
+            dt_to = pd.to_datetime(date_to)
+            df = df[df["CloseDate"] <= dt_to]
+        except Exception:
+            pass
 
     total = len(df)
 
-    # Sort by CloseDate descending, then paginate
-    df = df.sort_values("CloseDate", ascending=False, na_position="last")
+    # Sort
+    _SORT_MAP = {
+        "CloseDate": "CloseDate",
+        "ListPrice": "ListPrice",
+        "ClosePrice": "ClosePrice",
+        "City": "City",
+        "DaysOnMarket": "DaysOnMarket",
+        "BedroomsTotal": "BedroomsTotal",
+        "BuildingAreaTotal": "BuildingAreaTotal",
+    }
+    sort_col = _SORT_MAP.get(sort_by or "CloseDate", "CloseDate")
+    ascending = (sort_order or "desc").lower() == "asc"
+    df = df.sort_values(sort_col, ascending=ascending, na_position="last")
     start = (page - 1) * page_size
     page_df = df.iloc[start : start + page_size]
 
@@ -104,6 +131,9 @@ async def get_listings(
             latitude=float(row["Latitude"]) if pd.notna(row.get("Latitude")) else None,
             longitude=float(row["Longitude"]) if pd.notna(row.get("Longitude")) else None,
             on_market_date=row["OnMarketDate"].strftime("%Y-%m-%d") if pd.notna(row.get("OnMarketDate")) else None,
+            close_date=row["CloseDate"].strftime("%Y-%m-%d") if pd.notna(row.get("CloseDate")) else None,
+            days_on_market=int(row["DaysOnMarket"]) if pd.notna(row.get("DaysOnMarket")) else None,
+            property_type=row.get("PropertyType") if pd.notna(row.get("PropertyType")) else None,
         ))
 
     return ListingsResponse(

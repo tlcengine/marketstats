@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, forwardRef } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -155,16 +155,19 @@ function pivotData(
 
 // ── Component ──
 
-export default function MetricChart({
-  data,
-  metric,
-  chartType,
-  areaNames,
-  areaIds,
-  rolling,
-  legendVisible,
-  height = 450,
-}: MetricChartProps) {
+const MetricChart = forwardRef<HTMLDivElement, MetricChartProps>(function MetricChart(
+  {
+    data,
+    metric,
+    chartType,
+    areaNames,
+    areaIds,
+    rolling,
+    legendVisible,
+    height = 450,
+  },
+  ref
+) {
   const pivoted = useMemo(
     () => pivotData(data, areaIds, areaNames, rolling),
     [data, areaIds, areaNames, rolling]
@@ -198,7 +201,7 @@ export default function MetricChart({
   };
 
   return (
-    <div>
+    <div ref={ref}>
       <h2
         className="mb-3 text-lg font-semibold tracking-tight"
         style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#181818" }}
@@ -275,4 +278,6 @@ export default function MetricChart({
       </ResponsiveContainer>
     </div>
   );
-}
+});
+
+export default MetricChart;

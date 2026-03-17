@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import calendar
 from datetime import datetime
 
+import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Query
 
@@ -78,6 +80,164 @@ def _yoy(series: pd.DataFrame, col: str) -> tuple[float | None, float | None, fl
     return latest_val, prev_val, change
 
 
+def _generate_narrative(city: str, state: str, kpis: list[dict], data_end: str) -> str:
+    """Generate a LinkedIn newsletter-style narrative for the market report."""
+    # Parse data_end for month name
+    try:
+        end_dt = datetime.strptime(data_end, "%Y-%m-%d")
+        month_name = calendar.month_name[end_dt.month]
+        year = end_dt.year
+    except Exception:
+        month_name = "recent months"
+        year = datetime.now().year
+
+    # Extract KPI values
+    price_kpi = next((k for k in kpis if k["label"] == "Median Sales Price"), None)
+    sales_kpi = next((k for k in kpis if k["label"] == "Closed Sales"), None)
+    dom_kpi = next((k for k in kpis if k["label"] == "Days on Market"), None)
+    listings_kpi = next((k for k in kpis if k["label"] == "New Listings"), None)
+
+    price_val = price_kpi["value"] if price_kpi else "N/A"
+    price_change = price_kpi["change"] if price_kpi else "N/A"
+    price_dir = price_kpi["direction"] if price_kpi else "flat"
+
+    sales_val = sales_kpi["value"] if sales_kpi else "N/A"
+    sales_change = sales_kpi["change"] if sales_kpi else "N/A"
+
+    dom_val = dom_kpi["value"] if dom_kpi else "N/A"
+    dom_change = dom_kpi["change"] if dom_kpi else "N/A"
+
+    listings_val = listings_kpi["value"] if listings_kpi else "N/A"
+    listings_change = listings_kpi["change"] if listings_kpi else "N/A"
+
+    # Build narrative
+    if price_dir == "up":
+        trend_word = "appreciation"
+        trend_adj = "rising"
+    elif price_dir == "down":
+        trend_word = "softening"
+        trend_adj = "declining"
+    else:
+        trend_word = "stability"
+        trend_adj = "steady"
+
+    narrative = (
+        f"The {city}, {state} residential market continued to show {trend_word} "
+        f"through {month_name} {year}, with the median sales price reaching "
+        f"**{price_val}** ({price_change} year-over-year). "
+        f"\n\n"
+        f"Transaction volume tells an important story: **{sales_val}** closed sales "
+        f"were recorded in the latest month ({sales_change} YoY), while "
+        f"**{listings_val}** new listings entered the market ({listings_change} YoY). "
+        f"This supply-demand dynamic continues to shape pricing conditions across the area."
+        f"\n\n"
+        f"Properties are spending an average of **{dom_val} days** on market "
+        f"({dom_change} YoY), reflecting the pace at which buyers are absorbing "
+        f"available inventory. "
+    )
+
+    if price_dir == "up":
+        narrative += (
+            f"With {trend_adj} prices and sustained buyer demand, sellers in {city} "
+            f"maintain a favorable negotiating position heading into the next quarter."
+        )
+    elif price_dir == "down":
+        narrative += (
+            f"The {trend_adj} price trend may present opportunities for buyers "
+            f"who have been waiting on the sidelines, though market fundamentals "
+            f"in {city} remain sound."
+        )
+    else:
+        narrative += (
+            f"The {trend_adj} market conditions in {city} suggest a balanced "
+            f"environment for both buyers and sellers as we move forward."
+        )
+
+    return narrative
+
+
+def _build_recent_sales(df: pd.DataFrame, limit: int = 20) -> list[dict]:
+    """Build a list of recent closed sales for the report table."""
+    closed = df[df["StandardStatus"] == "Closed"].copy()
+    if closed.empty:
+        return []
+
+    closed = closed.sort_values("CloseDate", ascending=False).head(limit)
+
+    sales = []
+    for _, row in closed.iterrows():
+        addr_parts = []
+        if pd.notna(row.get("StreetNumber")):
+            addr_parts.append(str(row["StreetNumber"]))
+        if pd.notna(row.get("StreetName")):
+            addr_parts.append(str(row["StreetName"]))
+        if pd.notna(row.get("StreetSuffix")):
+            addr_parts.append(str(row["StreetSuffix"]))
+        address = " ".join(addr_parts) or "N/A"
+
+        close_price = float(row["ClosePrice"]) if pd.notna(row.get("ClosePrice")) else None
+        list_price = float(row["ListPrice"]) if pd.notna(row.get("ListPrice")) else None
+        close_date = row["CloseDate"].strftime("%Y-%m-%d") if pd.notna(row.get("CloseDate")) else None
+        beds = int(row["BedroomsTotal"]) if pd.notna(row.get("BedroomsTotal")) else None
+        baths = float(row["BathroomsTotalDecimal"]) if pd.notna(row.get("BathroomsTotalDecimal")) else None
+        sqft = int(row["BuildingAreaTotal"]) if pd.notna(row.get("BuildingAreaTotal")) and row["BuildingAreaTotal"] > 0 else None
+        dom = int(row["DaysOnMarket"]) if pd.notna(row.get("DaysOnMarket")) else None
+
+        sales.append({
+            "address": address,
+            "close_price": close_price,
+            "list_price": list_price,
+            "close_date": close_date,
+            "beds": beds,
+            "baths": baths,
+            "sqft": sqft,
+            "dom": dom,
+        })
+
+    return sales
+
+
+def _build_price_distribution(df: pd.DataFrame) -> list[dict]:
+    """Build price distribution buckets for a histogram chart."""
+    closed = df[(df["StandardStatus"] == "Closed") & df["ClosePrice"].notna()].copy()
+    if closed.empty:
+        return []
+
+    prices = closed["ClosePrice"].dropna()
+    if len(prices) == 0:
+        return []
+
+    # Create reasonable bins
+    min_price = max(0, prices.quantile(0.02))
+    max_price = prices.quantile(0.98)
+
+    if max_price <= min_price:
+        return []
+
+    bins = np.linspace(min_price, max_price, 11)
+    labels = []
+    for i in range(len(bins) - 1):
+        lo = bins[i]
+        hi = bins[i + 1]
+        if lo >= 1_000_000:
+            lo_s = f"${lo / 1_000_000:.1f}M"
+        elif lo >= 1_000:
+            lo_s = f"${lo / 1_000:.0f}K"
+        else:
+            lo_s = f"${lo:.0f}"
+        if hi >= 1_000_000:
+            hi_s = f"${hi / 1_000_000:.1f}M"
+        elif hi >= 1_000:
+            hi_s = f"${hi / 1_000:.0f}K"
+        else:
+            hi_s = f"${hi:.0f}"
+        labels.append(f"{lo_s}-{hi_s}")
+
+    counts, _ = np.histogram(prices, bins=bins)
+
+    return [{"range": label, "count": int(c)} for label, c in zip(labels, counts)]
+
+
 @router.get("/")
 async def get_report(
     city: str = Query(..., description="City name"),
@@ -148,6 +308,8 @@ async def get_report(
         direction=_direction(change),
     ))
 
+    kpi_dicts = [k.model_dump() for k in kpis]
+
     # Build time-series data for charts (last 24 months)
     chart_cutoff = datetime.now() - pd.DateOffset(months=24)
     chart_sp = sp[sp["Month"] >= chart_cutoff].to_dict(orient="records") if not sp.empty else []
@@ -159,15 +321,37 @@ async def get_report(
     for row in chart_cs:
         row["Month"] = row["Month"].strftime("%Y-%m")
 
+    # Generate narrative
+    narrative = _generate_narrative(city, state, kpi_dicts, data_end)
+
+    # Recent sales table
+    recent_sales = _build_recent_sales(df, limit=20)
+
+    # Price distribution
+    price_distribution = _build_price_distribution(df)
+
+    # Headline
+    price_kpi = next((k for k in kpi_dicts if k["label"] == "Median Sales Price"), None)
+    if price_kpi and price_kpi["direction"] == "up":
+        headline = f"{city} Home Prices Continue to Rise"
+    elif price_kpi and price_kpi["direction"] == "down":
+        headline = f"{city} Housing Market Shows Signs of Cooling"
+    else:
+        headline = f"{city} Market Holds Steady"
+
     return {
         "city": city,
         "state": state,
         "data_through": data_end,
-        "kpis": [k.model_dump() for k in kpis],
+        "headline": headline,
+        "narrative": narrative,
+        "kpis": kpi_dicts,
         "charts": {
             "sales_price": chart_sp,
             "closed_sales": chart_cs,
         },
+        "price_distribution": price_distribution,
+        "recent_sales": recent_sales,
         "podcast_url": f"https://podcastfy.certihomes.com/podcast/{city.lower().replace(' ', '-')}-{state.lower().replace(' ', '-')}",
     }
 

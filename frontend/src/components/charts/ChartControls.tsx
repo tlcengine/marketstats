@@ -117,7 +117,11 @@ function ShareDropdown({ onExport }: { onExport: (type: string) => void }) {
 
 // ── Main component: right-aligned chart controls bar ──
 
-export default function ChartControls() {
+interface ChartControlsProps {
+  onExport?: (type: string) => void;
+}
+
+export default function ChartControls({ onExport: onExportProp }: ChartControlsProps) {
   const chartType = useDashboardStore((s) => s.chartType);
   const setChartType = useDashboardStore((s) => s.setChartType);
   const years = useDashboardStore((s) => s.years);
@@ -133,7 +137,11 @@ export default function ChartControls() {
   const selectedMetric = useDashboardStore((s) => s.selectedMetric);
 
   const handleExport = (type: string) => {
-    console.log(`Export: ${type}`);
+    if (onExportProp) {
+      onExportProp(type);
+    } else {
+      console.log(`Export: ${type} (no handler provided)`);
+    }
   };
 
   const showStatToggle =

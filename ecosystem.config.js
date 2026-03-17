@@ -3,18 +3,15 @@ module.exports = {
     {
       name: "marketstats-frontend",
       cwd: "/home/krish/marketstats/frontend",
-      script: "npm",
-      args: "run dev",
+      script: "/home/krish/marketstats/start-frontend.sh",
       env: {
-        PORT: 3000,
-        NODE_ENV: "development",
+        NODE_ENV: "production",
       },
     },
     {
       name: "marketstats-api",
       cwd: "/home/krish/marketstats/backend",
-      script: "/home/krish/anaconda3/bin/uvicorn",
-      args: "main:app --host 0.0.0.0 --port 8000",
+      script: "/home/krish/marketstats/start-api.sh",
       env: {
         PYTHONUNBUFFERED: "1",
       },

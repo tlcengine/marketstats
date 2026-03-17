@@ -10,6 +10,8 @@ import {
   type MetricResponseAPI,
   type QuickFactsResponseAPI,
   type ListingsResponseAPI,
+  type ForecastResponseAPI,
+  type ListingDetailAPI,
 } from "./api";
 import {
   getMockStates,
@@ -298,6 +300,10 @@ interface UseListingsParams {
   maxPrice?: number;
   propertyType?: string;
   bedrooms?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  sortBy?: string;
+  sortOrder?: string;
   page?: number;
   pageSize?: number;
 }
@@ -305,7 +311,7 @@ interface UseListingsParams {
 export function useListings(params: UseListingsParams | null) {
   const key =
     params && params.state && params.geoValues.length > 0
-      ? `listings/${params.state}/${params.geoType}/${params.geoValues.join(",")}/${params.page ?? 1}`
+      ? `listings/${params.state}/${params.geoType}/${params.geoValues.join(",")}/${params.sortBy ?? "CloseDate"}/${params.sortOrder ?? "desc"}/${params.minPrice ?? ""}/${params.maxPrice ?? ""}/${params.dateFrom ?? ""}/${params.dateTo ?? ""}/${params.propertyType ?? ""}/${params.bedrooms ?? ""}/${params.page ?? 1}`
       : null;
 
   return useSWR<ListingsResponseAPI>(
@@ -321,10 +327,61 @@ export function useListings(params: UseListingsParams | null) {
         max_price: params.maxPrice,
         property_type: params.propertyType,
         bedrooms: params.bedrooms,
+        date_from: params.dateFrom,
+        date_to: params.dateTo,
+        sort_by: params.sortBy,
+        sort_order: params.sortOrder,
         page: params.page ?? 1,
         page_size: params.pageSize ?? 50,
       });
     },
     SWR_OPTIONS
+  );
+}
+
+// ── Listing detail hook ──
+
+export function useListingDetail(id: string | null, state: string | null) {
+  return useSWR<ListingDetailAPI>(
+    id && state ? `listing/${id}/${state}` : null,
+    () => api.getListingDetail(id!, state!),
+    SWR_OPTIONS
+  );
+}
+
+// ── Forecast hook ──
+
+interface UseForecastParams {
+  state: string;
+  geoType: string;
+  geoValues: string[];
+  years?: number;
+  forecastMonths?: number;
+  statType?: string;
+}
+
+export function useForecast(params: UseForecastParams | null) {
+  const key =
+    params && params.state && params.geoValues.length > 0
+      ? `forecast/${params.state}/${params.geoType}/${params.geoValues.join(",")}/${params.years ?? 5}/${params.forecastMonths ?? 12}/${params.statType ?? "Median"}`
+      : null;
+
+  return useSWR<ForecastResponseAPI>(
+    key,
+    () => {
+      if (!params) throw new Error("No params");
+      return api.getForecast({
+        state: params.state,
+        geo_type: GEO_TYPE_MAP[params.geoType] || params.geoType,
+        geo_values: params.geoValues.join(","),
+        years: params.years ?? 5,
+        forecast_months: params.forecastMonths ?? 12,
+        stat_type: params.statType === "average" ? "Average" : "Median",
+      });
+    },
+    {
+      ...SWR_OPTIONS,
+      dedupingInterval: 30_000,
+    }
   );
 }

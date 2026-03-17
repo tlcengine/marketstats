@@ -10,6 +10,7 @@ import type {
   StatType,
   YearRange,
   RollingWindow,
+  DrawnShape,
 } from "./types";
 import type { MetricKey } from "./constants";
 
@@ -108,4 +109,52 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   mapVisible: false,
   toggleMap: () =>
     set((state) => ({ mapVisible: !state.mapVisible })),
+
+  // Draw mode
+  drawMode: false,
+  toggleDrawMode: () =>
+    set((state) => ({ drawMode: !state.drawMode })),
+
+  // Drawn shapes
+  drawnShapes: [],
+  addDrawnShape: (shape: DrawnShape) =>
+    set((state) => ({ drawnShapes: [...state.drawnShapes, shape] })),
+  removeDrawnShape: (id: string) =>
+    set((state) => ({
+      drawnShapes: state.drawnShapes.filter((s) => s.id !== id),
+    })),
+  clearDrawnShapes: () => set({ drawnShapes: [] }),
+
+  // Save drawn shape as custom area
+  saveDrawnShapeAsArea: (shape: DrawnShape, name: string) =>
+    set((state) => {
+      if (state.areas.length >= 4) return state;
+      const idx = state.areas.length + 1;
+      const newArea: AreaConfig = {
+        id: createAreaId(),
+        state: "",
+        geoType: "custom",
+        geoValues: [],
+        name: name || `Custom Area ${idx}`,
+        drawnShape: shape,
+      };
+      return {
+        areas: [...state.areas, newArea],
+        drawnShapes: state.drawnShapes.filter((s) => s.id !== shape.id),
+        savedCustomAreas: [
+          ...state.savedCustomAreas,
+          { name: name || `Custom Area ${idx}`, shape },
+        ],
+      };
+    }),
+
+  // Saved custom areas
+  savedCustomAreas: [],
+  removeSavedCustomArea: (shapeId: string) =>
+    set((state) => ({
+      savedCustomAreas: state.savedCustomAreas.filter(
+        (a) => a.shape.id !== shapeId
+      ),
+      areas: state.areas.filter((a) => a.drawnShape?.id !== shapeId),
+    })),
 }));

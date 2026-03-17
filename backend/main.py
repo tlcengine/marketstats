@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import get_settings
 from db import close_db
-from routers import metrics, listings, geographies, export, report
+from routers import metrics, listings, geographies, export, report, forecast, tax, faststats, feeds, branding
 
 
 @asynccontextmanager
@@ -41,6 +41,11 @@ app.include_router(listings.router, prefix="/api/listings", tags=["Listings"])
 app.include_router(geographies.router, prefix="/api/geographies", tags=["Geographies"])
 app.include_router(export.router, prefix="/api/export", tags=["Export"])
 app.include_router(report.router, prefix="/api/report", tags=["Report"])
+app.include_router(forecast.router, prefix="/api/forecast", tags=["Forecast"])
+app.include_router(tax.router, prefix="/api/tax", tags=["Tax"])
+app.include_router(faststats.router, prefix="/api/faststats", tags=["FastStats"])
+app.include_router(feeds.router, prefix="/api/feeds", tags=["Feeds"])
+app.include_router(branding.router, prefix="/api/branding", tags=["Branding"])
 
 
 @app.get("/api/health")

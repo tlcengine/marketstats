@@ -112,6 +112,9 @@ export interface ListingSummaryAPI {
   latitude?: number | null;
   longitude?: number | null;
   on_market_date?: string | null;
+  close_date?: string | null;
+  days_on_market?: number | null;
+  property_type?: string | null;
   photo_url?: string | null;
 }
 
@@ -120,6 +123,218 @@ export interface ListingsResponseAPI {
   total: number;
   page: number;
   page_size: number;
+}
+
+export interface ForecastPointAPI {
+  date: string; // YYYY-MM
+  value: number;
+  count?: number;
+}
+
+export interface ForecastResponseAPI {
+  state: string;
+  geo_type: string;
+  geo_values: string[];
+  stat_type: string;
+  historical: ForecastPointAPI[];
+  forecast: ForecastPointAPI[];
+  confidence_upper: ForecastPointAPI[];
+  confidence_lower: ForecastPointAPI[];
+  current_median: number | null;
+  predicted_median: number | null;
+  pct_change: number | null;
+  total_transactions?: number;
+}
+
+export interface ListingDetailAPI {
+  listing: Record<string, unknown>;
+}
+
+// ── Tax types ──
+
+export interface TaxSummaryAPI {
+  total_properties: number;
+  median_net_value: number | null;
+  median_tax: number | null;
+  avg_tax: number | null;
+  avg_net_value: number | null;
+  total_land_value: number | null;
+  total_improvement_value: number | null;
+  effective_rate: number | null;
+}
+
+export interface PropertyClassCountAPI {
+  property_class: string;
+  label: string;
+  count: number;
+}
+
+export interface TaxDistributionBucketAPI {
+  bucket_min: number;
+  bucket_max: number;
+  count: number;
+}
+
+export interface CountyRateAPI {
+  county: string;
+  effective_rate: number;
+  avg_tax: number;
+  avg_net_value: number;
+  count: number;
+}
+
+export interface TaxRecordAPI {
+  property_location: string | null;
+  city_state: string | null;
+  county: string | null;
+  net_value: number | null;
+  calculated_tax: number | null;
+  land_value: number | null;
+  improvement_value: number | null;
+  property_class: string | null;
+  year_constructed: number | null;
+  block: string | null;
+  lot: string | null;
+  zip_code: string | null;
+  year_assessed: number | null;
+  sale_price: number | null;
+}
+
+export interface TaxPredictionRequestAPI {
+  county: string;
+  municipality?: string;
+  property_class?: string;
+  current_value?: number;
+  bedrooms?: number;
+  sqft?: number;
+  year_built?: number;
+  lot_size?: number;
+}
+
+export interface ComparablePropertyAPI {
+  address: string | null;
+  city: string | null;
+  net_value: number;
+  calculated_tax: number;
+  effective_rate: number;
+  year_constructed: number | null;
+}
+
+export interface TaxPredictionAPI {
+  predicted_tax: number;
+  predicted_assessment: number;
+  effective_rate: number;
+  confidence: string;
+  comparable_count: number;
+  median_area_tax: number;
+  median_area_value: number;
+  comparables: ComparablePropertyAPI[];
+  low_estimate: number;
+  high_estimate: number;
+}
+
+// ── Report types ──
+
+export interface ReportKPIAPI {
+  label: string;
+  value: string;
+  change: string | null;
+  direction: string | null; // "up", "down", "flat"
+}
+
+export interface RecentSaleAPI {
+  address: string;
+  close_price: number | null;
+  list_price: number | null;
+  close_date: string | null;
+  beds: number | null;
+  baths: number | null;
+  sqft: number | null;
+  dom: number | null;
+}
+
+export interface PriceDistributionBucketAPI {
+  range: string;
+  count: number;
+}
+
+export interface ReportResponseAPI {
+  city: string;
+  state: string;
+  data_through: string;
+  headline: string;
+  narrative: string;
+  kpis: ReportKPIAPI[];
+  charts: {
+    sales_price: Array<{ Month: string; "Sales Price": number }>;
+    closed_sales: Array<{ Month: string; "Closed Sales": number }>;
+  };
+  price_distribution: PriceDistributionBucketAPI[];
+  recent_sales: RecentSaleAPI[];
+  podcast_url: string;
+}
+
+export interface FeaturedCitiesResponseAPI {
+  cities: Array<{ city: string; state: string }>;
+}
+
+// ── Feeds types ──
+
+export interface FeedStatusAPI {
+  key: string;
+  name: string;
+  provider: string;
+  method: string;
+  state: string;
+  status: string; // "active", "stale", "broken"
+  enabled: boolean;
+  doc_count: number | null;
+  last_sync: string | null;
+  disabled_reason: string | null;
+}
+
+export interface FeedsResponseAPI {
+  feeds: FeedStatusAPI[];
+  summary: {
+    total_feeds: number;
+    active_feeds: number;
+    total_documents: number;
+  };
+}
+
+// ── Branding types ──
+
+export interface BrandingProfileAPI {
+  agent_name: string;
+  title: string;
+  company_name: string;
+  phone: string;
+  email: string;
+  website: string;
+  headshot_data: string | null;
+  headshot_mime: string | null;
+  logo_data: string | null;
+  logo_mime: string | null;
+  updated_at: string | null;
+}
+
+// ── FastStats types ──
+
+export interface FastStatsMetricAPI {
+  metric: string;
+  label: string;
+  format: string;
+  current_value: number | null;
+  prior_value: number | null;
+  yoy_change: number | null;
+}
+
+export interface FastStatsResponseAPI {
+  area: string;
+  month: number;
+  year: number;
+  state: string;
+  metrics: FastStatsMetricAPI[];
 }
 
 // ── API methods ──
@@ -165,15 +380,99 @@ export const api = {
     max_price?: number;
     property_type?: string;
     bedrooms?: number;
+    date_from?: string;
+    date_to?: string;
+    sort_by?: string;
+    sort_order?: string;
     page?: number;
     page_size?: number;
   }) => apiFetch<ListingsResponseAPI>("/api/listings/", { params }),
 
+  // Single listing detail
+  getListingDetail: (id: string, state: string) =>
+    apiFetch<ListingDetailAPI>(`/api/listings/${id}`, { params: { state } }),
+
+  // Forecast
+  getForecast: (params: {
+    state: string;
+    geo_type?: string;
+    geo_values?: string;
+    years?: number;
+    forecast_months?: number;
+    stat_type?: string;
+  }) => apiFetch<ForecastResponseAPI>("/api/forecast/", { params }),
+
   // Report
   getReport: (city: string, state: string) =>
-    apiFetch("/api/report/", { params: { city, state } }),
+    apiFetch<ReportResponseAPI>("/api/report/", { params: { city, state } }),
 
-  getFeaturedCities: () => apiFetch("/api/report/featured-cities"),
+  getFeaturedCities: () =>
+    apiFetch<FeaturedCitiesResponseAPI>("/api/report/featured-cities"),
+
+  // Feeds
+  getFeeds: () => apiFetch<FeedsResponseAPI>("/api/feeds/"),
+
+  triggerSync: (feedKey: string) =>
+    apiFetch<{ status: string; message: string }>(`/api/feeds/${feedKey}/sync`, {
+      method: "POST",
+    }),
+
+  // Branding
+  getBranding: (userEmail?: string) =>
+    apiFetch<BrandingProfileAPI>("/api/branding/", {
+      params: { user_email: userEmail || "default" },
+    }),
+
+  saveBranding: (formData: FormData) =>
+    fetch(`${API_BASE}/api/branding/`, {
+      method: "POST",
+      body: formData,
+    }).then((r) => {
+      if (!r.ok) throw new Error(`API error: ${r.status}`);
+      return r.json();
+    }),
+
+  // Tax
+  getTaxCounties: () =>
+    apiFetch<{ counties: string[] }>("/api/tax/counties"),
+  getTaxMunicipalities: (county: string) =>
+    apiFetch<{ county: string; municipalities: string[] }>("/api/tax/municipalities", {
+      params: { county },
+    }),
+  getTaxSummary: (params: { county: string; municipality?: string }) =>
+    apiFetch<TaxSummaryAPI>("/api/tax/summary", { params }),
+  getTaxPropertyClasses: (params: { county: string; municipality?: string }) =>
+    apiFetch<{ classes: PropertyClassCountAPI[] }>("/api/tax/property-classes", { params }),
+  getTaxDistribution: (params: {
+    county: string;
+    municipality?: string;
+    field?: string;
+    buckets?: number;
+  }) =>
+    apiFetch<{ buckets: TaxDistributionBucketAPI[]; field: string }>(
+      "/api/tax/distribution",
+      { params }
+    ),
+  getTaxEffectiveRates: () =>
+    apiFetch<{ rates: CountyRateAPI[] }>("/api/tax/effective-rates"),
+  searchTaxProperty: (params: { query: string; county?: string; limit?: number }) =>
+    apiFetch<{ results: TaxRecordAPI[]; total: number }>("/api/tax/search", { params }),
+  predictTax: (body: TaxPredictionRequestAPI) =>
+    apiFetch<TaxPredictionAPI>("/api/tax/predict", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  // FastStats
+  getFastStats: (params: {
+    state: string;
+    geo_type: string;
+    geo_values: string;
+    month?: number;
+    year?: number;
+    stat_type?: string;
+  }) =>
+    apiFetch<FastStatsResponseAPI>("/api/faststats/", { params }),
 
   // Export
   exportCSV: (data: unknown) =>

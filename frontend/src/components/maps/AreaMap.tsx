@@ -3,11 +3,12 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { useDashboardStore } from "@/lib/store";
 import { AREA_COLORS } from "@/lib/constants";
+import type { DrawnShape } from "@/lib/types";
 
 /**
- * Leaflet-based map for visualizing selected areas.
+ * Leaflet-based map with draw tools (polygon, circle, rectangle).
  * Uses OpenStreetMap tiles (no API key required).
- * Dynamically imports Leaflet to avoid SSR issues in Next.js.
+ * Dynamically imports Leaflet + leaflet-draw to avoid SSR issues.
  */
 
 // Approximate center coords for states
@@ -82,19 +83,209 @@ function getCoords(geo: string): [number, number] | null {
   return GEO_COORDS[geo] ?? ZIP_COORDS[geo] ?? null;
 }
 
+let shapeCounter = 0;
+function nextShapeId(): string {
+  shapeCounter += 1;
+  return `drawn_${Date.now()}_${shapeCounter}`;
+}
+
 interface AreaMapProps {
   height?: number;
+}
+
+/** Panel showing drawn shapes with save/delete actions */
+function DrawnShapesPanel() {
+  const drawnShapes = useDashboardStore((s) => s.drawnShapes);
+  const removeDrawnShape = useDashboardStore((s) => s.removeDrawnShape);
+  const saveDrawnShapeAsArea = useDashboardStore((s) => s.saveDrawnShapeAsArea);
+  const clearDrawnShapes = useDashboardStore((s) => s.clearDrawnShapes);
+  const savedCustomAreas = useDashboardStore((s) => s.savedCustomAreas);
+  const removeSavedCustomArea = useDashboardStore((s) => s.removeSavedCustomArea);
+  const areas = useDashboardStore((s) => s.areas);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [areaName, setAreaName] = useState("");
+
+  if (drawnShapes.length === 0 && savedCustomAreas.length === 0) return null;
+
+  const canAddMore = areas.length < 4;
+
+  return (
+    <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3">
+      {/* Unsaved drawn shapes */}
+      {drawnShapes.length > 0 && (
+        <>
+          <div className="mb-2 flex items-center justify-between">
+            <h4 className="text-xs font-semibold text-gray-700">
+              Drawn Shapes ({drawnShapes.length})
+            </h4>
+            <button
+              onClick={clearDrawnShapes}
+              className="text-[10px] text-red-500 hover:text-red-700"
+            >
+              Clear All
+            </button>
+          </div>
+
+          <div className="space-y-1.5">
+            {drawnShapes.map((shape) => (
+              <div
+                key={shape.id}
+                className="flex items-center justify-between rounded border border-gray-100 bg-gray-50 px-2.5 py-1.5"
+              >
+                <div className="flex items-center gap-2">
+                  <ShapeIcon type={shape.type} />
+                  <span className="text-xs text-gray-600">{shape.label}</span>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  {editingId === shape.id ? (
+                    <>
+                      <input
+                        type="text"
+                        value={areaName}
+                        onChange={(e) => setAreaName(e.target.value)}
+                        placeholder="Area name..."
+                        className="w-24 rounded border border-gray-300 px-1.5 py-0.5 text-[10px]"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            saveDrawnShapeAsArea(shape, areaName);
+                            setEditingId(null);
+                            setAreaName("");
+                          }
+                          if (e.key === "Escape") {
+                            setEditingId(null);
+                            setAreaName("");
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          saveDrawnShapeAsArea(shape, areaName);
+                          setEditingId(null);
+                          setAreaName("");
+                        }}
+                        className="rounded bg-[#1a4b7f] px-1.5 py-0.5 text-[10px] text-white hover:bg-[#153d67]"
+                      >
+                        Save
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {canAddMore && (
+                        <button
+                          onClick={() => {
+                            setEditingId(shape.id);
+                            setAreaName(shape.label);
+                          }}
+                          className="rounded bg-[#1a4b7f] px-2 py-0.5 text-[10px] font-medium text-white hover:bg-[#153d67]"
+                        >
+                          Save Area
+                        </button>
+                      )}
+                      <button
+                        onClick={() => removeDrawnShape(shape.id)}
+                        className="rounded px-1.5 py-0.5 text-[10px] text-gray-400 hover:text-red-500"
+                        title="Delete shape"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Saved custom areas */}
+      {savedCustomAreas.length > 0 && (
+        <>
+          <div className="mb-2 mt-3 flex items-center gap-1.5">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a4b7f" strokeWidth="2">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+            </svg>
+            <h4 className="text-xs font-semibold text-gray-700">
+              Saved Custom Areas
+            </h4>
+          </div>
+          <div className="space-y-1.5">
+            {savedCustomAreas.map((area) => (
+              <div
+                key={area.shape.id}
+                className="flex items-center justify-between rounded border border-[#1a4b7f]/20 bg-[#1a4b7f]/5 px-2.5 py-1.5"
+              >
+                <div className="flex items-center gap-2">
+                  <ShapeIcon type={area.shape.type} />
+                  <span className="text-xs font-medium text-gray-700">
+                    {area.name}
+                  </span>
+                  <span className="text-[10px] text-gray-400">
+                    ({area.shape.type})
+                  </span>
+                </div>
+                <button
+                  onClick={() => removeSavedCustomArea(area.shape.id)}
+                  className="rounded px-1.5 py-0.5 text-[10px] text-gray-400 hover:text-red-500"
+                  title="Remove custom area"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ShapeIcon({ type }: { type: string }) {
+  switch (type) {
+    case "polygon":
+      return (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a4b7f" strokeWidth="2">
+          <polygon points="12 2 22 8.5 18 20 6 20 2 8.5" />
+        </svg>
+      );
+    case "circle":
+      return (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a4b7f" strokeWidth="2">
+          <circle cx="12" cy="12" r="10" />
+        </svg>
+      );
+    case "rectangle":
+      return (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a4b7f" strokeWidth="2">
+          <rect x="3" y="5" width="18" height="14" rx="1" />
+        </svg>
+      );
+    default:
+      return null;
+  }
 }
 
 export default function AreaMap({ height = 350 }: AreaMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import("leaflet").Map | null>(null);
   const markersRef = useRef<import("leaflet").CircleMarker[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const drawControlRef = useRef<any>(null);
+  const drawnItemsRef = useRef<import("leaflet").FeatureGroup | null>(null);
   const areas = useDashboardStore((s) => s.areas);
+  const drawMode = useDashboardStore((s) => s.drawMode);
+  const addDrawnShape = useDashboardStore((s) => s.addDrawnShape);
   const [ready, setReady] = useState(false);
   const leafletRef = useRef<typeof import("leaflet") | null>(null);
 
-  // Load Leaflet dynamically
+  // Load Leaflet + leaflet-draw dynamically
   useEffect(() => {
     let cancelled = false;
 
@@ -107,6 +298,9 @@ export default function AreaMap({ height = 350 }: AreaMapProps) {
         const L = await import("leaflet");
         leafletRef.current = L.default ?? L;
 
+        // Import leaflet-draw (side-effect: extends L)
+        await import("leaflet-draw");
+
         // Inject Leaflet CSS if not already present
         if (!document.querySelector('link[href*="leaflet.css"]')) {
           const link = document.createElement("link");
@@ -115,9 +309,17 @@ export default function AreaMap({ height = 350 }: AreaMapProps) {
           document.head.appendChild(link);
         }
 
+        // Inject leaflet-draw CSS
+        if (!document.querySelector('link[href*="leaflet.draw.css"]')) {
+          const link = document.createElement("link");
+          link.rel = "stylesheet";
+          link.href = "https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css";
+          document.head.appendChild(link);
+        }
+
         if (!cancelled) setReady(true);
-      } catch {
-        console.warn("Could not load Leaflet");
+      } catch (err) {
+        console.warn("Could not load Leaflet / leaflet-draw", err);
       }
     }
 
@@ -130,7 +332,7 @@ export default function AreaMap({ height = 350 }: AreaMapProps) {
   // Create map once Leaflet is ready
   useEffect(() => {
     if (!ready || !leafletRef.current || !mapContainerRef.current) return;
-    if (mapInstanceRef.current) return; // already created
+    if (mapInstanceRef.current) return;
 
     const L = leafletRef.current;
     const map = L.map(mapContainerRef.current, {
@@ -145,13 +347,135 @@ export default function AreaMap({ height = 350 }: AreaMapProps) {
       maxZoom: 18,
     }).addTo(map);
 
+    // Create a feature group to hold drawn items
+    const drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+    drawnItemsRef.current = drawnItems;
+
     mapInstanceRef.current = map;
 
     return () => {
       map.remove();
       mapInstanceRef.current = null;
+      drawnItemsRef.current = null;
+      drawControlRef.current = null;
     };
   }, [ready]);
+
+  // Add/remove draw controls based on drawMode
+  useEffect(() => {
+    if (!ready || !mapInstanceRef.current || !leafletRef.current || !drawnItemsRef.current) return;
+
+    const L = leafletRef.current;
+    const map = mapInstanceRef.current;
+
+    // Remove existing draw control
+    if (drawControlRef.current) {
+      map.removeControl(drawControlRef.current);
+      drawControlRef.current = null;
+    }
+
+    if (!drawMode) return;
+
+    // Add draw control with polygon, circle, rectangle
+    const drawControl = new (L as any).Control.Draw({
+      position: "topright",
+      draw: {
+        polyline: false,
+        marker: false,
+        circlemarker: false,
+        polygon: {
+          allowIntersection: false,
+          drawError: {
+            color: "#e74c3c",
+            message: "Edges cannot cross!",
+          },
+          shapeOptions: {
+            color: "#1a4b7f",
+            weight: 2,
+            fillOpacity: 0.15,
+          },
+        },
+        circle: {
+          shapeOptions: {
+            color: "#1a4b7f",
+            weight: 2,
+            fillOpacity: 0.15,
+          },
+        },
+        rectangle: {
+          shapeOptions: {
+            color: "#1a4b7f",
+            weight: 2,
+            fillOpacity: 0.15,
+          },
+        },
+      },
+      edit: {
+        featureGroup: drawnItemsRef.current,
+        remove: true,
+      },
+    });
+
+    map.addControl(drawControl);
+    drawControlRef.current = drawControl;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const onCreated = (e: any) => {
+      const layer = e.layer;
+      drawnItemsRef.current?.addLayer(layer);
+
+      let shapeType: DrawnShape["type"] = "polygon";
+      let geoJSON: GeoJSON.Geometry;
+      let radiusMeters: number | undefined;
+      let label = "";
+
+      if (e.layerType === "circle") {
+        shapeType = "circle";
+        const center = layer.getLatLng();
+        const radius = layer.getRadius();
+        radiusMeters = radius;
+        // Store circle center as a Point + radius
+        geoJSON = {
+          type: "Point",
+          coordinates: [center.lng, center.lat],
+        };
+        label = `Circle (${(radius / 1000).toFixed(1)} km radius)`;
+      } else if (e.layerType === "rectangle") {
+        shapeType = "rectangle";
+        geoJSON = layer.toGeoJSON().geometry;
+        const bounds = layer.getBounds();
+        const ne = bounds.getNorthEast();
+        const sw = bounds.getSouthWest();
+        label = `Rectangle (${sw.lat.toFixed(3)}, ${sw.lng.toFixed(3)} to ${ne.lat.toFixed(3)}, ${ne.lng.toFixed(3)})`;
+      } else {
+        shapeType = "polygon";
+        geoJSON = layer.toGeoJSON().geometry;
+        const coords = (geoJSON as GeoJSON.Polygon).coordinates[0];
+        label = `Polygon (${coords.length - 1} points)`;
+      }
+
+      const shape: DrawnShape = {
+        id: nextShapeId(),
+        type: shapeType,
+        geoJSON,
+        radiusMeters,
+        label,
+      };
+
+      addDrawnShape(shape);
+    };
+
+    map.on((L as any).Draw.Event.CREATED, onCreated);
+
+    return () => {
+      map.off((L as any).Draw.Event.CREATED, onCreated);
+      if (drawControlRef.current) {
+        map.removeControl(drawControlRef.current);
+        drawControlRef.current = null;
+      }
+    };
+  }, [ready, drawMode, addDrawnShape]);
 
   // Update markers when areas change
   const updateMarkers = useCallback(() => {
@@ -169,6 +493,54 @@ export default function AreaMap({ height = 350 }: AreaMapProps) {
 
     areas.forEach((area, idx) => {
       const color = AREA_COLORS[idx % AREA_COLORS.length];
+
+      // Render saved custom shapes on the map
+      if (area.geoType === "custom" && area.drawnShape) {
+        const shape = area.drawnShape;
+        if (shape.type === "circle" && shape.radiusMeters) {
+          const coords = shape.geoJSON.type === "Point"
+            ? shape.geoJSON.coordinates
+            : [0, 0];
+          const center: [number, number] = [coords[1], coords[0]];
+          bounds.push(center);
+          const circle = L.circle(center, {
+            radius: shape.radiusMeters,
+            color,
+            weight: 2,
+            fillOpacity: 0.15,
+          })
+            .bindPopup(
+              `<div style="font-family:Inter,sans-serif;font-size:12px;">` +
+                `<strong style="color:${color};">${area.name}</strong><br/>` +
+                `<span style="color:#53555A;">${shape.label}</span></div>`
+            )
+            .addTo(map);
+          markersRef.current.push(circle as unknown as import("leaflet").CircleMarker);
+        } else {
+          const geoLayer = L.geoJSON(shape.geoJSON as any, {
+            style: {
+              color,
+              weight: 2,
+              fillOpacity: 0.15,
+            },
+          })
+            .bindPopup(
+              `<div style="font-family:Inter,sans-serif;font-size:12px;">` +
+                `<strong style="color:${color};">${area.name}</strong><br/>` +
+                `<span style="color:#53555A;">${shape.label}</span></div>`
+            )
+            .addTo(map);
+          const layerBounds = geoLayer.getBounds();
+          if (layerBounds.isValid()) {
+            bounds.push([layerBounds.getCenter().lat, layerBounds.getCenter().lng]);
+          }
+          // Store reference for cleanup (using any layer in the group)
+          geoLayer.eachLayer((l) => {
+            markersRef.current.push(l as unknown as import("leaflet").CircleMarker);
+          });
+        }
+        return;
+      }
 
       if (area.geoValues.length > 0) {
         area.geoValues.forEach((geo) => {
@@ -225,7 +597,6 @@ export default function AreaMap({ height = 350 }: AreaMapProps) {
 
   useEffect(() => {
     if (ready && mapInstanceRef.current) {
-      // Small delay to ensure map is fully initialized
       const timer = setTimeout(updateMarkers, 100);
       return () => clearTimeout(timer);
     }
@@ -257,10 +628,13 @@ export default function AreaMap({ height = 350 }: AreaMapProps) {
   }
 
   return (
-    <div
-      ref={mapContainerRef}
-      className="rounded-lg border border-gray-200 overflow-hidden"
-      style={{ height, width: "100%" }}
-    />
+    <div>
+      <div
+        ref={mapContainerRef}
+        className="rounded-lg border border-gray-200 overflow-hidden"
+        style={{ height, width: "100%" }}
+      />
+      <DrawnShapesPanel />
+    </div>
   );
 }

@@ -80,6 +80,9 @@ class ListingSummary(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     on_market_date: Optional[str] = None
+    close_date: Optional[str] = None
+    days_on_market: Optional[int] = None
+    property_type: Optional[str] = None
     photo_url: Optional[str] = None
 
 
