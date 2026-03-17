@@ -37,6 +37,91 @@ async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T>
   return response.json();
 }
 
+// ── API Response types (matching backend Pydantic schemas) ──
+
+export interface GeoOption {
+  value: string;
+  label: string;
+  count?: number | null;
+}
+
+export interface StatesResponse {
+  states: GeoOption[];
+}
+
+export interface CountiesResponse {
+  state: string;
+  counties: GeoOption[];
+}
+
+export interface CitiesResponse {
+  state: string;
+  cities: GeoOption[];
+}
+
+export interface ZipsResponse {
+  state: string;
+  zips: GeoOption[];
+}
+
+export interface MetricDataPointAPI {
+  date: string; // YYYY-MM
+  value: number | null;
+  count?: number | null;
+}
+
+export interface MetricSeriesAPI {
+  name: string;
+  data: MetricDataPointAPI[];
+  color?: string | null;
+}
+
+export interface MetricResponseAPI {
+  metric: string;
+  stat_type: string;
+  series: MetricSeriesAPI[];
+  y_axis_label: string;
+  y_axis_format: string;
+}
+
+export interface QuickFactAPI {
+  area_name: string;
+  latest_value: number | null;
+  previous_value: number | null;
+  yoy_change: number | null;
+  period: string | null;
+}
+
+export interface QuickFactsResponseAPI {
+  metric: string;
+  facts: QuickFactAPI[];
+}
+
+export interface ListingSummaryAPI {
+  id: string;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+  list_price?: number | null;
+  close_price?: number | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  sqft?: number | null;
+  status?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  on_market_date?: string | null;
+  photo_url?: string | null;
+}
+
+export interface ListingsResponseAPI {
+  listings: ListingSummaryAPI[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 // ── API methods ──
 
 export const api = {
@@ -44,16 +129,13 @@ export const api = {
   health: () => apiFetch<{ status: string }>("/api/health"),
 
   // Geographies
-  getStates: () => apiFetch<{ states: string[] }>("/api/geographies/states"),
+  getStates: () => apiFetch<StatesResponse>("/api/geographies/states"),
   getCounties: (state: string) =>
-    apiFetch<{ counties: string[] }>("/api/geographies/counties", { params: { state } }),
+    apiFetch<CountiesResponse>("/api/geographies/counties", { params: { state } }),
   getCities: (state: string) =>
-    apiFetch<{ cities: Array<{ value: string; label: string; count: number }> }>(
-      "/api/geographies/cities",
-      { params: { state } }
-    ),
+    apiFetch<CitiesResponse>("/api/geographies/cities", { params: { state } }),
   getZips: (state: string) =>
-    apiFetch<{ zips: string[] }>("/api/geographies/zips", { params: { state } }),
+    apiFetch<ZipsResponse>("/api/geographies/zips", { params: { state } }),
 
   // Metrics
   getMetrics: (params: {
@@ -62,16 +144,16 @@ export const api = {
     geo_type?: string;
     geo_values?: string;
     years?: number;
-    rolling?: number;
     stat_type?: string;
-  }) => apiFetch("/api/metrics/", { params }),
+  }) => apiFetch<MetricResponseAPI>("/api/metrics/", { params }),
 
   getQuickFacts: (params: {
     state: string;
     metric: string;
     geo_type?: string;
     geo_values?: string;
-  }) => apiFetch("/api/metrics/quick-facts", { params }),
+    stat_type?: string;
+  }) => apiFetch<QuickFactsResponseAPI>("/api/metrics/quick-facts", { params }),
 
   // Listings
   getListings: (params: {
@@ -82,9 +164,10 @@ export const api = {
     min_price?: number;
     max_price?: number;
     property_type?: string;
+    bedrooms?: number;
     page?: number;
     page_size?: number;
-  }) => apiFetch("/api/listings/", { params }),
+  }) => apiFetch<ListingsResponseAPI>("/api/listings/", { params }),
 
   // Report
   getReport: (city: string, state: string) =>

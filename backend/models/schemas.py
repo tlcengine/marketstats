@@ -21,6 +21,7 @@ class MetricKey(str, Enum):
     ABSORPTION_RATE = "AbsorptionRate"
     AVG_SALES_PRICE = "AverageSalesPrice"
     LIST_TO_SALE = "ListToSaleRatio"
+    ORIGINAL_LIST_PRICE = "OriginalListPrice"
 
 
 class GeoType(str, Enum):
@@ -49,11 +50,11 @@ class MetricSeries(BaseModel):
 
 
 class MetricResponse(BaseModel):
-    metric: MetricKey
-    stat_type: StatType
+    metric: str
+    stat_type: str
     series: list[MetricSeries]
     y_axis_label: str
-    y_axis_format: str  # e.g. "$,.0f" or ".1%"
+    y_axis_format: str  # e.g. "$~s", "%", "f"
 
 
 class QuickFact(BaseModel):

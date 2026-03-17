@@ -1,0 +1,1 @@
+"""MarketStats data models."""
