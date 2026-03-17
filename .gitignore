@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Next.js
+.next/
+out/
+frontend/.next/
+frontend/out/
+
+# Environment
+.env
+.env.local
+.env.production.local
+frontend/.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Secrets
+*.pkl
+secert.txt
+client_secret.json
+*credentials*.json
+*token*.json
+
+# Logs
+*.log
+npm-debug.log*
