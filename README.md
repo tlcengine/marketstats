@@ -2,7 +2,7 @@
 
 **Real Estate Market Intelligence by CertiHomes**
 
-Production-grade market analytics dashboard built with Next.js, FastAPI, and MongoDB. Successor to the Streamlit prototype at [marketstats.certihomes.com](https://marketstats.certihomes.com).
+Production-grade market analytics dashboard built with Next.js, FastAPI, and MongoDB. Replaces the Streamlit prototype (now at [streamlit.tlcengine.com](https://streamlit.tlcengine.com)).
 
 ## Architecture
 
@@ -138,8 +138,8 @@ docker-compose up -d    # Builds and runs everything
 ```
 
 ## URLs
-- **Production**: https://app.certihomes.com (planned)
-- **Legacy Streamlit**: https://marketstats.certihomes.com
+- **Production**: https://marketstats.certihomes.com
+- **Legacy Streamlit**: https://streamlit.tlcengine.com
 - **API Docs**: https://api.certihomes.com/docs
 
 ## Related Services

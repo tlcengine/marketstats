@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     google_oauth_client_secret: str = ""
 
     # App
-    app_base_url: str = "https://app.certihomes.com"
+    app_base_url: str = "https://marketstats.certihomes.com"
     session_secret: str = "change-me-in-production"
 
     # Services

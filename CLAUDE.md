@@ -2,8 +2,8 @@
 
 ## Project Overview
 Production-grade real estate market analytics dashboard. Next.js 15 frontend + FastAPI backend + MongoDB.
-- **Planned URL:** https://app.certihomes.com
-- **Legacy Streamlit:** https://marketstats.certihomes.com
+- **Production URL:** https://marketstats.certihomes.com
+- **Legacy Streamlit:** https://streamlit.tlcengine.com
 
 ## Tech Stack
 - **Frontend:** Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS
