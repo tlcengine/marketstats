@@ -22,12 +22,14 @@ const DEFAULT_FILTERS: FilterState = {
   yearBuiltRange: null,
 };
 
+let areaCounter = 0;
 function createAreaId(): string {
-  return `area_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  areaCounter += 1;
+  return `area_${areaCounter}`;
 }
 
 const DEFAULT_AREA: AreaConfig = {
-  id: createAreaId(),
+  id: "area_1",
   state: "",
   geoType: "county",
   geoValues: [],

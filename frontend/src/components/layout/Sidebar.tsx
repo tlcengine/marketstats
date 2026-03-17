@@ -27,7 +27,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface NavItem {
   label: string;
@@ -51,8 +51,11 @@ const NAV_ITEMS: NavItem[] = [
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [mounted, setMounted] = useState(false);
 
-  const userInitials = session?.user?.name
+  useEffect(() => setMounted(true), []);
+
+  const userInitials = mounted && session?.user?.name
     ? session.user.name
         .split(" ")
         .map((n) => n[0])
@@ -73,11 +76,11 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-dark-gray">
-              {session?.user?.name ?? "User"}
+            <p className="truncate text-sm font-medium text-dark-gray" suppressHydrationWarning>
+              {mounted ? (session?.user?.name ?? "User") : "User"}
             </p>
-            <p className="truncate text-xs text-body-gray">
-              {session?.user?.email ?? ""}
+            <p className="truncate text-xs text-body-gray" suppressHydrationWarning>
+              {mounted ? (session?.user?.email ?? "") : ""}
             </p>
           </div>
         </div>

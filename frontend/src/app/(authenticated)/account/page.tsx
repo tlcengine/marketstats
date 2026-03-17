@@ -1,12 +1,16 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function AccountPage() {
   const { data: session } = useSession();
+  const [mounted, setMounted] = useState(false);
 
-  const userInitials = session?.user?.name
+  useEffect(() => setMounted(true), []);
+
+  const userInitials = mounted && session?.user?.name
     ? session.user.name
         .split(" ")
         .map((n) => n[0])
@@ -34,11 +38,11 @@ export default function AccountPage() {
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-lg font-semibold text-dark-gray">
-              {session?.user?.name ?? "User"}
+            <p className="text-lg font-semibold text-dark-gray" suppressHydrationWarning>
+              {mounted ? (session?.user?.name ?? "User") : "User"}
             </p>
-            <p className="text-sm text-body-gray">
-              {session?.user?.email ?? ""}
+            <p className="text-sm text-body-gray" suppressHydrationWarning>
+              {mounted ? (session?.user?.email ?? "") : ""}
             </p>
           </div>
         </div>

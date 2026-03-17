@@ -8,13 +8,13 @@ Production-grade market analytics dashboard built with Next.js, FastAPI, and Mon
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    FRONTEND (Next.js)                    │
-│  React 19 + TypeScript + Tailwind CSS + Recharts/D3     │
-│  Google OAuth (NextAuth.js) | Server Components         │
+│                    FRONTEND (Next.js 16)                 │
+│  React 19 + TypeScript + Tailwind CSS + Recharts        │
+│  Google OAuth (NextAuth.js v5) | Turbopack              │
 ├─────────────────────────────────────────────────────────┤
 │                    API (FastAPI)                          │
 │  Python 3.12 | Pydantic v2 | Motor (async MongoDB)      │
-│  Endpoints: /metrics, /listings, /forecast, /export      │
+│  Endpoints: /metrics, /listings, /geographies, /report   │
 ├─────────────────────────────────────────────────────────┤
 │                    DATABASE (MongoDB)                     │
 │  172.26.1.151:27017 | housing-prices (~18.6M docs)       │
@@ -26,88 +26,89 @@ Production-grade market analytics dashboard built with Next.js, FastAPI, and Mon
 
 | Layer | Technology | Why |
 |-------|-----------|-----|
-| **Frontend** | Next.js 15 (App Router) | SSR, file-based routing, React Server Components |
+| **Frontend** | Next.js 16 (App Router) | SSR, file-based routing, React Server Components |
 | **UI** | Tailwind CSS + shadcn/ui | BHS-inspired luxury design system |
-| **Charts** | Recharts + D3.js | Interactive, performant, client-side rendering |
-| **Maps** | Mapbox GL JS | Vector tiles, draw tools, fast rendering |
-| **Auth** | NextAuth.js (Google OAuth) | Same Google OAuth credentials as Streamlit version |
+| **Charts** | Recharts | Interactive, performant, client-side rendering |
+| **Maps** | Leaflet + react-leaflet | Open-source mapping with draw tools |
+| **Auth** | NextAuth.js v5 (Google OAuth) | Same Google OAuth credentials as Streamlit version |
+| **State** | Zustand | Lightweight client-side state management |
+| **Data Fetching** | SWR | Stale-while-revalidate data fetching |
 | **API** | FastAPI | Async Python, auto-docs, Pydantic validation |
 | **Database** | MongoDB (Motor) | Async driver, same DB as Streamlit version |
-| **Export** | PDF (ReportLab), CSV, PNG (html2canvas) | Chart/report export |
+| **Export** | CSV, PNG, PDF | Chart/report export |
 | **Podcast** | Podcastfy API (existing) | Pre-generated market podcasts |
 
 ## Project Structure
 
 ```
 marketstats/
-├── frontend/                 # Next.js 15 app
-│   ├── app/                  # App Router pages
-│   │   ├── layout.tsx        # Root layout + auth provider
-│   │   ├── page.tsx          # Landing / login
-│   │   ├── dashboard/        # Market Analytics (main)
-│   │   ├── forecast/         # Price Forecast
-│   │   ├── browse/           # Browse Listings
-│   │   ├── tax/              # Tax Analysis + Predictor
-│   │   ├── report/           # Market Report (narrative)
-│   │   └── admin/            # Branding, Feed Manager
-│   ├── components/
-│   │   ├── ui/               # shadcn/ui primitives
-│   │   ├── charts/           # Recharts wrappers
-│   │   ├── maps/             # Mapbox components
-│   │   ├── filters/          # Sidebar filter controls
-│   │   └── layout/           # Sidebar, MetricBar, TopBar
-│   ├── lib/
-│   │   ├── api.ts            # FastAPI client
-│   │   ├── auth.ts           # NextAuth config
-│   │   └── constants.ts      # Metrics, colors, formats
-│   └── styles/
-│       └── globals.css       # Tailwind + BHS design tokens
+├── frontend/                 # Next.js 16 app
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── layout.tsx        # Root layout + auth provider
+│   │   │   ├── page.tsx          # Landing / login
+│   │   │   └── (authenticated)/
+│   │   │       ├── layout.tsx    # Sidebar + MetricProvider
+│   │   │       ├── dashboard/    # Market Analytics (main)
+│   │   │       ├── forecast/     # Price Forecast
+│   │   │       ├── browse/       # Browse Listings
+│   │   │       ├── tax/          # Tax Analysis + Predictor
+│   │   │       ├── report/       # Market Report (narrative)
+│   │   │       ├── faststats/    # FastStats
+│   │   │       ├── account/      # My Account
+│   │   │       └── admin/        # Branding, Feed Manager
+│   │   ├── components/
+│   │   │   ├── ui/               # shadcn/ui primitives
+│   │   │   ├── charts/           # MetricChart, ChartControls, ChartSkeleton
+│   │   │   ├── maps/             # AreaMap (Leaflet)
+│   │   │   ├── filters/          # AreaSelector, FilterSidebar
+│   │   │   ├── layout/           # Sidebar, MobileNav, QuickFacts
+│   │   │   └── providers/        # SessionProvider, MetricProvider
+│   │   ├── lib/
+│   │   │   ├── api.ts            # FastAPI client + types
+│   │   │   ├── auth.ts           # NextAuth config (Google OAuth)
+│   │   │   ├── constants.ts      # 13 metrics, colors, formats
+│   │   │   ├── format.ts         # Number/date formatting
+│   │   │   ├── hooks.ts          # SWR hooks (useStates, useMetrics, etc.)
+│   │   │   ├── store.ts          # Zustand store (areas, filters, chart state)
+│   │   │   ├── types.ts          # TypeScript types
+│   │   │   └── utils.ts          # cn() utility
+│   │   └── styles/
+│   │       └── globals.css       # Tailwind + BHS design tokens
+│   └── package.json
 │
 ├── backend/                  # FastAPI app
-│   ├── main.py               # FastAPI entry point
+│   ├── main.py               # FastAPI entry point + CORS
 │   ├── routers/
 │   │   ├── metrics.py        # /api/metrics — time-series data
 │   │   ├── listings.py       # /api/listings — browse/filter
-│   │   ├── forecast.py       # /api/forecast — price predictions
-│   │   ├── tax.py            # /api/tax — tax analysis
-│   │   ├── export.py         # /api/export — CSV/PDF/PNG
+│   │   ├── geographies.py    # /api/geographies — states, counties, cities, zips
 │   │   └── report.py         # /api/report — market report data
 │   ├── models/
 │   │   ├── schemas.py        # Pydantic request/response models
-│   │   └── mls.py            # MLS data abstraction (from MLS.py)
+│   │   └── mls.py            # MLS data abstraction (async Motor)
 │   ├── services/
-│   │   ├── data_generator.py # Metric calculations (from data_generators.py)
-│   │   ├── breakout.py       # Breakout analysis
-│   │   └── forecast.py       # Forecasting models
+│   │   ├── data_generator.py # 13 metric calculations
+│   │   └── breakout.py       # Breakout analysis
 │   ├── db.py                 # Motor async MongoDB connection
 │   └── config.py             # Settings (env vars)
 │
-├── docker-compose.yml        # Frontend + Backend + Nginx
-├── .env.example              # Template for env vars
+├── ecosystem.config.js       # PM2 config (frontend port 3002, backend port 8000)
+├── start-api.sh              # Shell script to start FastAPI via PM2
 └── README.md
 ```
 
-## Key Features (Ported from Streamlit)
+## Key Features
 
-- **13 Market Metrics**: Sales Price, New Listings, Inventory, Pending Sales, Closed Sales, DOM, Months Supply, % List Price, $/SqFt, $ Volume, Absorption Rate, Price per Unit, List-to-Sale Ratio
-- **4-Area Comparison**: Compare up to 4 geographies side-by-side
-- **Map Mode**: Draw polygons/circles to define custom areas (Mapbox GL Draw)
+- **13 Market Metrics**: Median/Average Sales Price, New Listings, Inventory, Pending Sales, Closed Sales, DOM, Months Supply, % List Price, $/SqFt, $ Volume, Absorption Rate, List-to-Sale Ratio
+- **4-Area Comparison**: Compare up to 4 geographies side-by-side with colored tabs
+- **Map Mode**: Leaflet map with listing markers and area boundaries
 - **Breakout Analysis**: Split metrics by Property Type, Price Range, Bedrooms, etc.
 - **Chart Export**: CSV, PNG, PDF, Embed Code
 - **Market Report**: Narrative report with KPIs, charts, tables, podcast
 - **FastStats**: Quick statistical summary
-- **Tax Analysis**: Property tax data and predictions
-- **Google OAuth**: Same credentials, gated access
-- **BHS Design System**: Playfair Display + Inter, gold accents, luxury aesthetic
-
-## Performance Targets
-
-| Metric | Streamlit (current) | Next.js (target) |
-|--------|-------------------|-----------------|
-| Initial page load | ~3-5s | <1s |
-| Filter change | ~2-4s (full rerun) | <200ms (client-side) |
-| Chart render | ~1-2s | <100ms |
-| Mobile support | None | Full responsive |
+- **Google OAuth**: Gated access with Google sign-in
+- **BHS Design System**: Playfair Display + Inter, gold accents (#DAAA00), luxury aesthetic
 
 ## Getting Started
 
@@ -121,26 +122,35 @@ marketstats/
 cd frontend
 npm install
 cp .env.example .env.local
-npm run dev          # http://localhost:3000
+npm run dev -- -p 3002     # http://localhost:3002
 ```
 
 ### Backend
 ```bash
 cd backend
 pip install -r requirements.txt
-cp .env.example .env
 uvicorn main:app --reload --port 8000
 ```
 
-### Production
+### Production (PM2)
 ```bash
-docker-compose up -d    # Builds and runs everything
+# Start both services
+pm2 start "npm run dev -- -p 3002" --name marketstats-frontend --cwd /home/krish/marketstats/frontend
+pm2 start /home/krish/marketstats/start-api.sh --name marketstats-api
+
+# Or use ecosystem config
+pm2 start ecosystem.config.js
 ```
 
 ## URLs
-- **Production**: https://marketstats.certihomes.com
-- **Legacy Streamlit**: https://streamlit.tlcengine.com
-- **API Docs**: https://api.certihomes.com/docs
+- **Production**: https://marketstats.certihomes.com (Nginx → Next.js :3002 + FastAPI :8000)
+- **Legacy Streamlit**: https://streamlit.tlcengine.com (Nginx → Streamlit :8501)
+- **API Docs**: http://localhost:8000/docs (FastAPI auto-generated)
+
+## Nginx Routing
+- `/` → Next.js frontend (port 3002)
+- `/api/auth/` → Next.js NextAuth routes (port 3002)
+- `/api/*` → FastAPI backend (port 8000)
 
 ## Related Services
 - **Podcastfy API**: https://podcastfy.certihomes.com (podcast generation)
