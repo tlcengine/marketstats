@@ -1,73 +1,127 @@
 "use client";
 
-import React, { useState, useCallback, useRef, useMemo } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import {
   api,
   type ReportResponseAPI,
-  type FeaturedCitiesResponseAPI,
+  type MonthlyDataAPI,
+  type YearlyDataAPI,
 } from "@/lib/api";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   TrendingUp,
   TrendingDown,
   Minus,
-  Share2,
-  Printer,
   Play,
   Pause,
   Volume2,
-  Check,
   ChevronDown,
+  Search,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  ComposedChart,
+} from "recharts";
 
-// ── City selector ──
+// ── Theme constants ──
 
-function CitySelector({
-  cities,
-  selected,
-  onSelect,
+const NAVY = "#1B2D4B";
+const GOLD = "#DAAA00";
+const CREAM = "#FAF9F7";
+const DARK = "#181818";
+const BODY = "#3A3A3A";
+const META = "#8A9BB5";
+const BORDER = "#D9D8D6";
+
+const PRICE_SEGMENTS: Record<string, number> = {
+  "All Prices": 0,
+  "$500K+": 500_000,
+  "$750K+": 750_000,
+  "$1M+": 1_000_000,
+  "$1.5M+": 1_500_000,
+  "$2M+": 2_000_000,
+};
+
+// ── SVG icons for share buttons ──
+
+const LinkedInIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-white">
+    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+  </svg>
+);
+
+const TwitterIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-white">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);
+
+const FacebookIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-white">
+    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+  </svg>
+);
+
+const EmailIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-white">
+    <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+  </svg>
+);
+
+// ── Share bar component ──
+
+function ShareBar({
+  share,
+  centered = false,
 }: {
-  cities: Array<{ city: string; state: string }>;
-  selected: { city: string; state: string } | null;
-  onSelect: (c: { city: string; state: string }) => void;
+  share: ReportResponseAPI["share"];
+  centered?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-
   return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 rounded-lg border border-border-warm bg-white px-4 py-2.5 text-sm font-medium text-dark-gray shadow-sm transition-colors hover:bg-cream"
+    <div className={`flex flex-wrap gap-1.5 ${centered ? "justify-center" : ""}`}>
+      <a
+        href={share.linkedin}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 rounded-none px-3 py-1.5 text-[0.7rem] font-medium uppercase tracking-wider text-white transition-all hover:-translate-y-px hover:opacity-90 hover:shadow-md"
+        style={{ background: NAVY }}
       >
-        <span>{selected ? `${selected.city}, ${selected.state}` : "Select a city"}</span>
-        <ChevronDown className="h-4 w-4 text-body-gray" />
-      </button>
-      {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[220px] rounded-lg border border-border-warm bg-white py-1 shadow-lg">
-          {cities.map((c) => (
-            <button
-              key={`${c.city}-${c.state}`}
-              onClick={() => {
-                onSelect(c);
-                setOpen(false);
-              }}
-              className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors hover:bg-cream ${
-                selected?.city === c.city ? "font-medium text-dark-gray" : "text-body-gray"
-              }`}
-            >
-              {selected?.city === c.city && <Check className="h-3.5 w-3.5 text-gold" />}
-              <span>{c.city}, {c.state}</span>
-            </button>
-          ))}
-        </div>
-      )}
+        <LinkedInIcon /> LinkedIn
+      </a>
+      <a
+        href={share.twitter}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 rounded-none px-3 py-1.5 text-[0.7rem] font-medium uppercase tracking-wider text-white transition-all hover:-translate-y-px hover:opacity-90 hover:shadow-md"
+        style={{ background: NAVY }}
+      >
+        <TwitterIcon /> Twitter/X
+      </a>
+      <a
+        href={share.facebook}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 rounded-none px-3 py-1.5 text-[0.7rem] font-medium uppercase tracking-wider text-white transition-all hover:-translate-y-px hover:opacity-90 hover:shadow-md"
+        style={{ background: NAVY }}
+      >
+        <FacebookIcon /> Facebook
+      </a>
+      <a
+        href={share.email}
+        className="inline-flex items-center gap-1.5 rounded-none px-3 py-1.5 text-[0.7rem] font-medium uppercase tracking-wider text-white transition-all hover:-translate-y-px hover:opacity-90 hover:shadow-md"
+        style={{ background: "#53555A" }}
+      >
+        <EmailIcon /> Email
+      </a>
     </div>
   );
 }
@@ -102,228 +156,131 @@ function KPICard({
         : "text-body-gray";
 
   return (
-    <div className="rounded-xl border border-border-warm bg-white p-5 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wider text-body-gray">
+    <div className="rounded-none border border-[#D9D8D6] bg-white p-4 shadow-sm">
+      <p
+        className="text-[0.65rem] font-semibold uppercase tracking-widest"
+        style={{ color: META, fontFamily: "'Inter', sans-serif" }}
+      >
         {label}
       </p>
-      <p className="mt-2 font-serif text-2xl font-bold text-dark-gray">{value}</p>
+      <p
+        className="mt-1.5 text-xl font-bold"
+        style={{ color: DARK, fontFamily: "'Playfair Display', Georgia, serif" }}
+      >
+        {value}
+      </p>
       {change && change !== "N/A" && (
-        <div className="mt-2 flex items-center gap-1.5">
+        <div className="mt-1.5 flex items-center gap-1.5">
           {dirIcon}
-          <span className={`text-sm font-medium ${changeColor}`}>{change}</span>
-          <span className="text-xs text-body-gray">YoY</span>
+          <span className={`text-xs font-medium ${changeColor}`}>{change}</span>
+          <span className="text-[0.65rem]" style={{ color: META }}>YoY</span>
         </div>
       )}
     </div>
   );
 }
 
-// ── Simple bar chart (price trend) ──
+// ── Podcast player with brewing animation ──
 
-function PriceTrendChart({
-  data,
+function PodcastPlayer({
+  podcastUrl,
+  generateText,
 }: {
-  data: Array<{ Month: string; "Sales Price": number }>;
+  podcastUrl: string;
+  generateText: string;
 }) {
-  if (!data.length) return <EmptyChart label="No price data available" />;
-
-  const values = data.map((d) => d["Sales Price"]);
-  const maxVal = Math.max(...values);
-  const minVal = Math.min(...values);
-  const range = maxVal - minVal || 1;
-
-  return (
-    <div className="rounded-xl border border-border-warm bg-white p-5">
-      <h3 className="mb-4 font-serif text-lg font-semibold text-dark-gray">
-        Median Sales Price Trend
-      </h3>
-      <div className="flex items-end gap-1" style={{ height: 200 }}>
-        {data.map((d, i) => {
-          const pct = ((d["Sales Price"] - minVal) / range) * 80 + 20;
-          const isLast = i === data.length - 1;
-          return (
-            <div
-              key={d.Month}
-              className="group relative flex flex-1 flex-col items-center"
-            >
-              <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-dark-gray px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
-                {d.Month}: ${(d["Sales Price"] / 1000).toFixed(0)}K
-              </div>
-              <div
-                className={`w-full rounded-t transition-colors ${
-                  isLast ? "bg-gold" : "bg-gold/40"
-                } group-hover:bg-gold`}
-                style={{ height: `${pct}%` }}
-              />
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-2 flex justify-between text-[10px] text-body-gray">
-        <span>{data[0]?.Month}</span>
-        <span>{data[data.length - 1]?.Month}</span>
-      </div>
-    </div>
-  );
-}
-
-// ── Price distribution chart ──
-
-function PriceDistributionChart({
-  data,
-}: {
-  data: Array<{ range: string; count: number }>;
-}) {
-  if (!data.length) return <EmptyChart label="No distribution data" />;
-
-  const maxCount = Math.max(...data.map((d) => d.count));
-
-  return (
-    <div className="rounded-xl border border-border-warm bg-white p-5">
-      <h3 className="mb-4 font-serif text-lg font-semibold text-dark-gray">
-        Price Distribution
-      </h3>
-      <div className="space-y-2">
-        {data.map((d) => {
-          const pct = maxCount > 0 ? (d.count / maxCount) * 100 : 0;
-          return (
-            <div key={d.range} className="flex items-center gap-3">
-              <span className="w-28 shrink-0 text-right text-xs text-body-gray">
-                {d.range}
-              </span>
-              <div className="flex-1">
-                <div
-                  className="h-5 rounded bg-gold/60 transition-all hover:bg-gold"
-                  style={{ width: `${Math.max(pct, 2)}%` }}
-                />
-              </div>
-              <span className="w-8 text-right text-xs font-medium text-dark-gray">
-                {d.count}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ── Empty chart placeholder ──
-
-function EmptyChart({ label }: { label: string }) {
-  return (
-    <div className="flex h-[200px] items-center justify-center rounded-xl border border-dashed border-border-warm bg-cream">
-      <p className="text-sm text-body-gray">{label}</p>
-    </div>
-  );
-}
-
-// ── Recent sales table ──
-
-function RecentSalesTable({
-  sales,
-}: {
-  sales: Array<{
-    address: string;
-    close_price: number | null;
-    list_price: number | null;
-    close_date: string | null;
-    beds: number | null;
-    baths: number | null;
-    sqft: number | null;
-    dom: number | null;
-  }>;
-}) {
-  if (!sales.length) return null;
-
-  const fmtPrice = (v: number | null) => {
-    if (v == null) return "--";
-    return `$${(v / 1000).toFixed(0)}K`;
-  };
-
-  return (
-    <div className="rounded-xl border border-border-warm bg-white">
-      <div className="border-b border-border-warm px-5 py-4">
-        <h3 className="font-serif text-lg font-semibold text-dark-gray">
-          Recent Sales
-        </h3>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border-warm bg-cream text-left">
-              <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-body-gray">
-                Address
-              </th>
-              <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-body-gray">
-                Close Price
-              </th>
-              <th className="hidden px-4 py-3 text-xs font-semibold uppercase tracking-wider text-body-gray md:table-cell">
-                List Price
-              </th>
-              <th className="hidden px-4 py-3 text-xs font-semibold uppercase tracking-wider text-body-gray sm:table-cell">
-                Date
-              </th>
-              <th className="hidden px-4 py-3 text-xs font-semibold uppercase tracking-wider text-body-gray lg:table-cell">
-                Beds
-              </th>
-              <th className="hidden px-4 py-3 text-xs font-semibold uppercase tracking-wider text-body-gray lg:table-cell">
-                Baths
-              </th>
-              <th className="hidden px-4 py-3 text-xs font-semibold uppercase tracking-wider text-body-gray lg:table-cell">
-                Sq Ft
-              </th>
-              <th className="hidden px-4 py-3 text-xs font-semibold uppercase tracking-wider text-body-gray md:table-cell">
-                DOM
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sales.map((s, i) => (
-              <tr
-                key={i}
-                className="border-b border-border-warm/50 transition-colors hover:bg-cream/50"
-              >
-                <td className="px-4 py-3 font-medium text-dark-gray">
-                  {s.address}
-                </td>
-                <td className="px-4 py-3 font-medium text-dark-gray">
-                  {fmtPrice(s.close_price)}
-                </td>
-                <td className="hidden px-4 py-3 text-body-gray md:table-cell">
-                  {fmtPrice(s.list_price)}
-                </td>
-                <td className="hidden px-4 py-3 text-body-gray sm:table-cell">
-                  {s.close_date ?? "--"}
-                </td>
-                <td className="hidden px-4 py-3 text-body-gray lg:table-cell">
-                  {s.beds ?? "--"}
-                </td>
-                <td className="hidden px-4 py-3 text-body-gray lg:table-cell">
-                  {s.baths ?? "--"}
-                </td>
-                <td className="hidden px-4 py-3 text-body-gray lg:table-cell">
-                  {s.sqft ? s.sqft.toLocaleString() : "--"}
-                </td>
-                <td className="hidden px-4 py-3 text-body-gray md:table-cell">
-                  {s.dom ?? "--"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ── Audio player ──
-
-function PodcastPlayer({ url }: { url: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [error, setError] = useState(false);
+  const [status, setStatus] = useState<"idle" | "brewing" | "ready" | "error">("idle");
+  const [audioSrc, setAudioSrc] = useState<string | null>(null);
+  const jobIdRef = useRef<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const PODCASTFY_URL = "https://podcastfy.certihomes.com";
+
+  // Check cache on mount
+  useEffect(() => {
+    const checkCache = async () => {
+      try {
+        const resp = await fetch(`${PODCASTFY_URL}/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: generateText,
+            tts_model: "edge",
+            roles_person1: "Host",
+            roles_person2: "Market Analyst",
+            word_count: 1500,
+          }),
+        });
+        const result = await resp.json();
+        if (result.status === "completed" && result.audio_url) {
+          setAudioSrc(`${PODCASTFY_URL}${result.audio_url}`);
+          setStatus("ready");
+        } else if (result.job_id) {
+          jobIdRef.current = result.job_id;
+          setStatus("brewing");
+        }
+      } catch {
+        // Podcast service not available, stay idle
+      }
+    };
+    checkCache();
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [generateText]);
+
+  // Poll for brewing status
+  useEffect(() => {
+    if (status !== "brewing" || !jobIdRef.current) return;
+    pollRef.current = setInterval(async () => {
+      try {
+        const resp = await fetch(`${PODCASTFY_URL}/status/${jobIdRef.current}`);
+        const data = await resp.json();
+        if (data.status === "completed" && data.audio_url) {
+          setAudioSrc(`${PODCASTFY_URL}${data.audio_url}`);
+          setStatus("ready");
+          if (pollRef.current) clearInterval(pollRef.current);
+        } else if (data.status === "failed") {
+          setStatus("error");
+          if (pollRef.current) clearInterval(pollRef.current);
+        }
+      } catch {
+        // keep polling
+      }
+    }, 10000);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [status]);
+
+  const handleGenerate = async () => {
+    setStatus("brewing");
+    try {
+      const resp = await fetch(`${PODCASTFY_URL}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: generateText,
+          tts_model: "edge",
+          roles_person1: "Host",
+          roles_person2: "Market Analyst",
+          word_count: 1500,
+        }),
+      });
+      const result = await resp.json();
+      if (result.status === "completed" && result.audio_url) {
+        setAudioSrc(`${PODCASTFY_URL}${result.audio_url}`);
+        setStatus("ready");
+      } else if (result.job_id) {
+        jobIdRef.current = result.job_id;
+      }
+    } catch {
+      setStatus("error");
+    }
+  };
 
   const toggle = useCallback(() => {
     const audio = audioRef.current;
@@ -331,7 +288,7 @@ function PodcastPlayer({ url }: { url: string }) {
     if (playing) {
       audio.pause();
     } else {
-      audio.play().catch(() => setError(true));
+      audio.play().catch(() => setStatus("error"));
     }
     setPlaying(!playing);
   }, [playing]);
@@ -342,62 +299,525 @@ function PodcastPlayer({ url }: { url: string }) {
     setProgress((audio.currentTime / audio.duration) * 100);
   }, []);
 
-  if (error) {
+  // Brewing animation
+  if (status === "brewing") {
     return (
-      <div className="rounded-xl border border-border-warm bg-cream p-4 text-center text-sm text-body-gray">
+      <div className="flex flex-col items-center py-6">
+        <style>{`
+          @keyframes pourCoffee { 0% { height: 0%; } 80% { height: 75%; } 100% { height: 75%; } }
+          @keyframes steam { 0% { opacity: 0; transform: translateY(0) scaleX(1); } 50% { opacity: 0.6; transform: translateY(-12px) scaleX(1.2); } 100% { opacity: 0; transform: translateY(-24px) scaleX(0.8); } }
+        `}</style>
+        <div className="flex gap-1.5">
+          {[0, 0.4, 0.8].map((delay) => (
+            <span
+              key={delay}
+              className="inline-block h-4 w-2 rounded-full border border-gray-400"
+              style={{ animation: `steam 2s ease-in-out ${delay}s infinite` }}
+            />
+          ))}
+        </div>
+        <div className="relative mt-1 inline-block">
+          <div
+            className="relative h-14 w-16 overflow-hidden border-b-[3px] border-l-[3px] border-r-[3px]"
+            style={{
+              borderColor: GOLD,
+              borderRadius: "0 0 12px 12px",
+              background: "#FAF8F5",
+            }}
+          >
+            <div
+              className="absolute bottom-0 left-0 right-0"
+              style={{
+                background: `linear-gradient(180deg, #E5C33A 0%, ${GOLD} 100%)`,
+                animation: "pourCoffee 4s ease-in-out infinite",
+              }}
+            />
+          </div>
+          <div
+            className="absolute right-[-14px] top-[10px] h-6 w-3.5 border-b-[3px] border-r-[3px] border-t-[3px]"
+            style={{
+              borderColor: GOLD,
+              borderRadius: "0 8px 8px 0",
+              borderLeft: "none",
+            }}
+          />
+        </div>
+        <p
+          className="mt-2.5 text-[15px] font-semibold tracking-wide"
+          style={{ color: NAVY, fontFamily: "'Playfair Display', Georgia, serif" }}
+        >
+          Podcast Brewing...
+        </p>
+        <p className="mt-1 text-xs" style={{ color: META }}>
+          Refresh in a minute to check progress.
+        </p>
+      </div>
+    );
+  }
+
+  // Ready state - audio player
+  if (status === "ready" && audioSrc) {
+    return (
+      <div className="border border-[#D9D8D6] bg-white p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill={GOLD}>
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+            </svg>
+            <span
+              className="text-[13px] font-semibold tracking-wide"
+              style={{ color: DARK, fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
+              Podcast
+            </span>
+          </div>
+          <button
+            onClick={toggle}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white shadow-md transition-transform hover:scale-105"
+            style={{ background: GOLD }}
+          >
+            {playing ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
+          </button>
+          <div className="min-w-0 flex-1">
+            <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: BORDER }}>
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${progress}%`, background: GOLD }}
+              />
+            </div>
+          </div>
+        </div>
+        <audio
+          ref={audioRef}
+          src={audioSrc}
+          onTimeUpdate={onTimeUpdate}
+          onEnded={() => setPlaying(false)}
+          onError={() => setStatus("error")}
+          preload="none"
+        />
+      </div>
+    );
+  }
+
+  // Error state
+  if (status === "error") {
+    return (
+      <div className="border border-[#D9D8D6] p-4 text-center text-sm" style={{ background: CREAM, color: META }}>
         Podcast audio is not available for this city.
       </div>
     );
   }
 
+  // Idle - generate button
   return (
-    <div className="rounded-xl border border-border-warm bg-white p-5">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={toggle}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gold text-white shadow-md transition-transform hover:scale-105"
-        >
-          {playing ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5" />}
-        </button>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <Volume2 className="h-4 w-4 text-body-gray" />
-            <span className="text-sm font-medium text-dark-gray">Market Report Podcast</span>
-          </div>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border-warm">
-            <div
-              className="h-full rounded-full bg-gold transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-      </div>
-      <audio
-        ref={audioRef}
-        src={url}
-        onTimeUpdate={onTimeUpdate}
-        onEnded={() => setPlaying(false)}
-        onError={() => setError(true)}
-        preload="none"
-      />
+    <div className="border border-[#D9D8D6] bg-white p-4">
+      <button
+        onClick={handleGenerate}
+        className="inline-flex items-center gap-2 rounded-none px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+        style={{ background: NAVY }}
+      >
+        <Volume2 className="h-4 w-4" />
+        Generate Podcast
+      </button>
     </div>
   );
 }
 
-// ── Narrative renderer ──
+// ── Narrative HTML renderer ──
 
-function Narrative({ text }: { text: string }) {
-  // Convert **bold** markdown to <strong>
-  const html = text
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="text-dark-gray">$1</strong>')
-    .replace(/\n\n/g, '</p><p class="mt-4 text-body-gray leading-relaxed text-[15px]">');
+function NarrativeSection({ html, className }: { html: string; className?: string }) {
+  return (
+    <div
+      className={className}
+      style={{
+        fontFamily: "'Inter', -apple-system, sans-serif",
+        fontSize: "0.95rem",
+        lineHeight: 1.75,
+        color: BODY,
+      }}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
+// ── Section title ──
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      className="mb-2.5 mt-4 border-b-2 pb-1.5 text-[0.95rem] font-semibold uppercase tracking-[1.5px]"
+      style={{
+        fontFamily: "'Playfair Display', Georgia, serif",
+        color: DARK,
+        borderColor: GOLD,
+      }}
+    >
+      {children}
+    </p>
+  );
+}
+
+// ── Divider ──
+
+function Divider() {
+  return <hr className="my-4 border-t" style={{ borderColor: BORDER }} />;
+}
+
+// ── Dollar formatter for charts ──
+
+function fmtDollar(val: number): string {
+  if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
+  if (val >= 1_000) return `$${(val / 1_000).toFixed(0)}K`;
+  return `$${val.toFixed(0)}`;
+}
+
+function fmtDollarFull(val: number): string {
+  return `$${val.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+// ── Chart tabs ──
+
+function ChartTabs({
+  monthly,
+  yearly,
+}: {
+  monthly: MonthlyDataAPI[];
+  yearly: YearlyDataAPI[];
+}) {
+  const [tab, setTab] = useState<"monthly" | "avgmed" | "annual">("monthly");
+
+  const tabStyle = (active: boolean) => ({
+    background: active ? NAVY : "transparent",
+    color: active ? "white" : BODY,
+    borderColor: active ? NAVY : BORDER,
+  });
 
   return (
-    <div className="rounded-xl border border-border-warm bg-white p-6">
-      <p
-        className="text-body-gray leading-relaxed text-[15px]"
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+    <div>
+      <div className="mb-4 flex gap-1">
+        {[
+          { key: "monthly" as const, label: "Monthly Sales & Price" },
+          { key: "avgmed" as const, label: "Avg vs Median Price" },
+          { key: "annual" as const, label: "Annual Summary" },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className="border px-3 py-1.5 text-xs font-medium transition-colors"
+            style={tabStyle(tab === key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "monthly" && monthly.length > 0 && (
+        <ResponsiveContainer width="100%" height={320}>
+          <ComposedChart data={monthly}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+            <XAxis
+              dataKey="month"
+              tick={{ fontSize: 10 }}
+              angle={-45}
+              textAnchor="end"
+              height={60}
+            />
+            <YAxis
+              yAxisId="left"
+              tick={{ fontSize: 11 }}
+              label={{ value: "Closed Sales", angle: -90, position: "insideLeft", style: { fontSize: 11 } }}
+            />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              tickFormatter={fmtDollar}
+              tick={{ fontSize: 11 }}
+              label={{ value: "Avg Price ($)", angle: 90, position: "insideRight", style: { fontSize: 11 } }}
+            />
+            <Tooltip
+              formatter={(value: unknown, name: unknown) => {
+                const v = Number(value);
+                const n = String(name);
+                return n === "avg_price" || n === "total_volume" ? fmtDollarFull(v) : v.toLocaleString();
+              }}
+              labelFormatter={(label: unknown) => `Month: ${String(label)}`}
+            />
+            <Bar
+              yAxisId="left"
+              dataKey="sales"
+              fill={NAVY}
+              name="Closed Sales"
+              radius={[4, 4, 0, 0]}
+            />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="avg_price"
+              stroke={GOLD}
+              strokeWidth={2}
+              dot={{ fill: GOLD, r: 3 }}
+              name="Avg Price"
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      )}
+
+      {tab === "avgmed" && monthly.length > 0 && (
+        <ResponsiveContainer width="100%" height={320}>
+          <LineChart data={monthly}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+            <XAxis
+              dataKey="month"
+              tick={{ fontSize: 10 }}
+              angle={-45}
+              textAnchor="end"
+              height={60}
+            />
+            <YAxis tickFormatter={fmtDollar} tick={{ fontSize: 11 }} />
+            <Tooltip
+              formatter={(value: unknown) => fmtDollarFull(Number(value))}
+              labelFormatter={(label: unknown) => `Month: ${String(label)}`}
+            />
+            <Legend />
+            <Line
+              type="monotone"
+              dataKey="avg_price"
+              stroke={NAVY}
+              strokeWidth={2.5}
+              dot
+              name="Average"
+            />
+            <Line
+              type="monotone"
+              dataKey="median_price"
+              stroke={GOLD}
+              strokeWidth={2.5}
+              dot
+              name="Median"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+
+      {tab === "annual" && yearly.length > 0 && (
+        <ResponsiveContainer width="100%" height={320}>
+          <BarChart data={yearly}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+            <XAxis dataKey="year" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip
+              formatter={(value: unknown, name: unknown) => {
+                const v = Number(value);
+                const n = String(name);
+                return n === "avg_price" || n === "total_volume" || n === "max_price"
+                  ? fmtDollarFull(v)
+                  : v.toLocaleString();
+              }}
+            />
+            <Bar
+              dataKey="sales"
+              fill="#283593"
+              name="Closed Sales"
+              radius={[4, 4, 0, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  );
+}
+
+// ── Year-over-Year table ──
+
+function YearlyTable({ data }: { data: YearlyDataAPI[] }) {
+  if (!data.length) return null;
+  return (
+    <div className="overflow-x-auto border border-[#D9D8D6]">
+      <table className="w-full text-sm">
+        <thead>
+          <tr style={{ background: CREAM }}>
+            {["Year", "Sales", "Avg Price", "Median Price", "Total Volume", "Avg DOM", "Max Sale"].map(
+              (h) => (
+                <th
+                  key={h}
+                  className="border-b border-[#D9D8D6] px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider"
+                  style={{ color: META }}
+                >
+                  {h}
+                </th>
+              )
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row) => (
+            <tr key={row.year} className="border-b border-[#D9D8D6]/50 transition-colors hover:bg-[#FAF9F7]/50">
+              <td className="px-3 py-2 font-medium" style={{ color: DARK }}>{row.year}</td>
+              <td className="px-3 py-2" style={{ color: DARK }}>{row.sales.toLocaleString()}</td>
+              <td className="px-3 py-2" style={{ color: BODY }}>{fmtDollarFull(row.avg_price)}</td>
+              <td className="px-3 py-2" style={{ color: BODY }}>{fmtDollarFull(row.median_price)}</td>
+              <td className="px-3 py-2" style={{ color: BODY }}>{fmtDollarFull(row.total_volume)}</td>
+              <td className="px-3 py-2" style={{ color: BODY }}>{row.avg_dom.toFixed(0)}</td>
+              <td className="px-3 py-2" style={{ color: BODY }}>{fmtDollarFull(row.max_price)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Recent notable sales table ──
+
+function RecentSalesTable({
+  sales,
+}: {
+  sales: ReportResponseAPI["recent_sales"];
+}) {
+  if (!sales.length) return null;
+
+  const fmtPrice = (v: number | null) => {
+    if (v == null) return "\u2014";
+    return `$${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  };
+
+  return (
+    <div className="overflow-x-auto border border-[#D9D8D6]">
+      <table className="w-full text-sm">
+        <thead>
+          <tr style={{ background: CREAM }}>
+            {["Address", "Sale Price", "List Price", "Close Date", "Beds", "Baths", "Sq Ft", "DOM"].map(
+              (h) => (
+                <th
+                  key={h}
+                  className="border-b border-[#D9D8D6] px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider"
+                  style={{ color: META }}
+                >
+                  {h}
+                </th>
+              )
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {sales.map((s, i) => (
+            <tr key={i} className="border-b border-[#D9D8D6]/50 transition-colors hover:bg-[#FAF9F7]/50">
+              <td className="px-3 py-2 font-medium" style={{ color: DARK }}>{s.address}</td>
+              <td className="px-3 py-2 font-medium" style={{ color: DARK }}>{fmtPrice(s.close_price)}</td>
+              <td className="px-3 py-2" style={{ color: BODY }}>{fmtPrice(s.list_price)}</td>
+              <td className="px-3 py-2" style={{ color: BODY }}>{s.close_date ?? "\u2014"}</td>
+              <td className="px-3 py-2" style={{ color: BODY }}>{s.beds ?? "\u2014"}</td>
+              <td className="px-3 py-2" style={{ color: BODY }}>{s.baths ?? "\u2014"}</td>
+              <td className="px-3 py-2" style={{ color: BODY }}>{s.sqft ? s.sqft.toLocaleString() : "\u2014"}</td>
+              <td className="px-3 py-2" style={{ color: BODY }}>{s.dom ?? "\u2014"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Price distribution histogram ──
+
+function PriceDistributionChart({
+  data,
+}: {
+  data: ReportResponseAPI["price_distribution"];
+}) {
+  if (!data.length) return null;
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <BarChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+        <XAxis
+          dataKey="range"
+          tick={{ fontSize: 9 }}
+          angle={-45}
+          textAnchor="end"
+          height={80}
+        />
+        <YAxis tick={{ fontSize: 11 }} />
+        <Tooltip />
+        <Bar dataKey="count" fill={NAVY} name="Number of Sales" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ── City search/select sidebar ──
+
+function CitySearchSelect({
+  cities,
+  selected,
+  onSelect,
+}: {
+  cities: string[];
+  selected: string;
+  onSelect: (city: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const filtered = useMemo(() => {
+    if (!search) return cities;
+    const lower = search.toLowerCase();
+    return cities.filter((c) => c.toLowerCase().includes(lower));
+  }, [cities, search]);
+
+  useEffect(() => {
+    if (open && inputRef.current) inputRef.current.focus();
+  }, [open]);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between gap-2 border bg-white px-3 py-2 text-sm font-medium transition-colors hover:bg-[#FAF9F7]"
+        style={{ borderColor: BORDER, color: DARK }}
+      >
+        <span>{selected || "Select a city"}</span>
+        <ChevronDown className="h-4 w-4" style={{ color: META }} />
+      </button>
+      {open && (
+        <div
+          className="absolute left-0 top-full z-50 mt-1 max-h-64 w-full overflow-y-auto border bg-white shadow-lg"
+          style={{ borderColor: BORDER }}
+        >
+          <div className="sticky top-0 border-b bg-white p-2" style={{ borderColor: BORDER }}>
+            <div className="flex items-center gap-2 border px-2 py-1" style={{ borderColor: BORDER }}>
+              <Search className="h-3.5 w-3.5" style={{ color: META }} />
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Search cities..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full border-none bg-transparent text-sm outline-none"
+                style={{ color: DARK }}
+              />
+            </div>
+          </div>
+          {filtered.map((c) => (
+            <button
+              key={c}
+              onClick={() => {
+                onSelect(c);
+                setOpen(false);
+                setSearch("");
+              }}
+              className="flex w-full items-center px-3 py-1.5 text-left text-sm transition-colors hover:bg-[#FAF9F7]"
+              style={{ color: selected === c ? DARK : BODY, fontWeight: selected === c ? 600 : 400 }}
+            >
+              {c}
+            </button>
+          ))}
+          {filtered.length === 0 && (
+            <p className="px-3 py-2 text-sm" style={{ color: META }}>No cities found</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -406,18 +826,15 @@ function Narrative({ text }: { text: string }) {
 
 function ReportSkeleton() {
   return (
-    <div className="animate-pulse space-y-6">
-      <div className="h-8 w-2/3 rounded bg-border-warm" />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className="animate-pulse space-y-6" style={{ maxWidth: 820, margin: "0 auto" }}>
+      <div className="h-32 rounded bg-[#D9D8D6]" />
+      <div className="grid grid-cols-4 gap-3">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-28 rounded-xl bg-border-warm/50" />
+          <div key={i} className="h-20 rounded bg-[#D9D8D6]/50" />
         ))}
       </div>
-      <div className="h-40 rounded-xl bg-border-warm/50" />
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="h-52 rounded-xl bg-border-warm/50" />
-        <div className="h-52 rounded-xl bg-border-warm/50" />
-      </div>
+      <div className="h-60 rounded bg-[#D9D8D6]/50" />
+      <div className="h-40 rounded bg-[#D9D8D6]/50" />
     </div>
   );
 }
@@ -425,130 +842,168 @@ function ReportSkeleton() {
 // ── Main page ──
 
 export default function MarketReportPage() {
-  const [selectedCity, setSelectedCity] = useState<{
-    city: string;
-    state: string;
-  } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [selectedCity, setSelectedCity] = useState("Edison");
+  const [priceLabel, setPriceLabel] = useState("All Prices");
 
   // Fetch featured cities
-  const { data: citiesData } = useSWR(
-    "report/featured-cities",
-    () => api.getFeaturedCities(),
-    { revalidateOnFocus: false }
-  );
+  const { data: citiesData } = useSWR("report/featured-cities", () => api.getFeaturedCities(), {
+    revalidateOnFocus: false,
+  });
+  const featured = citiesData?.cities ?? [];
 
-  const cities = citiesData?.cities ?? [];
+  // Fetch all cities for sidebar selector
+  const { data: allCitiesData } = useSWR("report/cities", () => api.getReportCities(), {
+    revalidateOnFocus: false,
+  });
+  const allCities = allCitiesData?.cities ?? [];
 
-  // Auto-select first city
-  React.useEffect(() => {
-    if (!selectedCity && cities.length > 0) {
-      setSelectedCity(cities[0]);
-    }
-  }, [cities, selectedCity]);
+  const minPrice = PRICE_SEGMENTS[priceLabel] ?? 0;
 
   // Fetch report data
-  const { data: report, isLoading, error } = useSWR(
-    selectedCity
-      ? `report/${selectedCity.city}/${selectedCity.state}`
-      : null,
-    () => api.getReport(selectedCity!.city, selectedCity!.state),
+  const {
+    data: report,
+    isLoading,
+    error,
+  } = useSWR(
+    `report/${selectedCity}/${minPrice}/${priceLabel}`,
+    () => api.getReport(selectedCity, "", minPrice, priceLabel),
     { revalidateOnFocus: false, dedupingInterval: 30_000 }
   );
 
-  const handleCopyLink = useCallback(() => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }, []);
-
-  const handlePrint = useCallback(() => {
-    window.print();
-  }, []);
-
   return (
     <div className="print:p-0">
-      {/* Header */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-bold text-dark-gray">
-            Market Report
-          </h1>
-          <p className="mt-1 text-sm text-body-gray">
-            LinkedIn newsletter-style narrative market analysis
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <CitySelector
-            cities={cities}
-            selected={selectedCity}
-            onSelect={setSelectedCity}
-          />
-          <div className="hidden gap-2 sm:flex print:hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCopyLink}
-              className="gap-1.5"
+      {/* Google Fonts */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+      `}</style>
+
+      {/* ── Featured city toggle buttons ── */}
+      <div className="mb-4 grid grid-cols-3 gap-2">
+        {featured.map((fc) => {
+          const isActive = selectedCity === fc.city;
+          return (
+            <button
+              key={fc.city}
+              onClick={() => {
+                setSelectedCity(fc.city);
+                setPriceLabel("All Prices");
+              }}
+              className="border py-2.5 text-center text-sm font-semibold uppercase tracking-wider transition-all"
+              style={{
+                background: isActive ? NAVY : "white",
+                color: isActive ? "white" : DARK,
+                borderColor: isActive ? NAVY : BORDER,
+                fontFamily: "'Playfair Display', Georgia, serif",
+              }}
             >
-              {copied ? (
-                <Check className="h-3.5 w-3.5 text-emerald-600" />
-              ) : (
-                <Share2 className="h-3.5 w-3.5" />
+              {fc.city}
+              {fc.desc && (
+                <span
+                  className="block text-[0.6rem] font-normal normal-case tracking-normal"
+                  style={{ color: isActive ? META : "#999", marginTop: 2 }}
+                >
+                  {fc.desc}
+                </span>
               )}
-              {copied ? "Copied" : "Share"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePrint}
-              className="gap-1.5"
-            >
-              <Printer className="h-3.5 w-3.5" />
-              Print
-            </Button>
-          </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Sidebar controls (inline for Next.js, no Streamlit sidebar) ── */}
+      <div className="mb-4 flex flex-wrap items-end gap-4 border-b pb-4" style={{ borderColor: BORDER }}>
+        <div className="min-w-[220px] flex-1">
+          <label
+            className="mb-1 block text-xs font-semibold uppercase tracking-wider"
+            style={{ color: META }}
+          >
+            City
+          </label>
+          <CitySearchSelect
+            cities={allCities}
+            selected={selectedCity}
+            onSelect={(city) => setSelectedCity(city)}
+          />
+        </div>
+        <div className="min-w-[160px]">
+          <label
+            className="mb-1 block text-xs font-semibold uppercase tracking-wider"
+            style={{ color: META }}
+          >
+            Price Segment
+          </label>
+          <select
+            value={priceLabel}
+            onChange={(e) => setPriceLabel(e.target.value)}
+            className="w-full border bg-white px-3 py-2 text-sm font-medium"
+            style={{ borderColor: BORDER, color: DARK }}
+          >
+            {Object.keys(PRICE_SEGMENTS).map((label) => (
+              <option key={label} value={label}>
+                {label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* Content */}
+      {/* ── Content ── */}
       {isLoading && <ReportSkeleton />}
 
       {error && !isLoading && (
-        <div className="rounded-xl border border-dashed border-red-300 bg-red-50 p-6 text-center">
-          <p className="text-sm text-red-600">
-            Could not load report data. The API may be unavailable.
-          </p>
+        <div className="border border-dashed border-red-300 bg-red-50 p-6 text-center">
+          <p className="text-sm text-red-600">Could not load report data. The API may be unavailable.</p>
         </div>
       )}
 
       {report && !isLoading && (
-        <div className="space-y-6">
-          {/* Date banner */}
-          <div className="flex items-center gap-3 rounded-lg bg-cream px-4 py-2.5">
-            <div className="h-1.5 w-1.5 rounded-full bg-gold" />
-            <span className="text-xs text-body-gray">
-              Report generated {new Date().toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </span>
-            <span className="text-xs text-body-gray">|</span>
-            <span className="text-xs text-body-gray">
-              Data through {report.data_through}
-            </span>
+        <div style={{ maxWidth: 820, margin: "0 auto" }}>
+          {/* Fallback notice */}
+          {report.fell_back && (
+            <div
+              className="mb-3 border px-4 py-2 text-sm"
+              style={{ borderColor: "#b8daff", background: "#e8f4fd", color: "#004085" }}
+            >
+              Not enough recent data for {report.city} at {report.original_price_label}. Showing all price ranges instead.
+            </div>
+          )}
+
+          {/* ── Navy banner ── */}
+          <div
+            className="mb-3 px-9 py-7"
+            style={{
+              background: `linear-gradient(135deg, ${NAVY} 0%, #243B5C 50%, ${NAVY} 100%)`,
+              borderBottom: `3px solid ${GOLD}`,
+            }}
+          >
+            <h1
+              className="mb-1 text-[1.45rem] font-semibold uppercase tracking-[2px] text-white"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
+              {report.city.toUpperCase()} MARKET UPDATE: {report.report_month.toUpperCase()}
+            </h1>
+            <p
+              className="mb-1.5 text-[1.05rem] font-normal italic leading-tight"
+              style={{ color: "#E5C33A", fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
+              {report.headline}
+            </p>
+            <p className="text-[0.76rem] tracking-wide" style={{ color: META, fontFamily: "'Inter', sans-serif" }}>
+              {report.report_date} &nbsp;|&nbsp; {report.price_segment} &nbsp;|&nbsp; {report.mls_label} Data
+              through {report.data_through}
+            </p>
           </div>
 
-          {/* Headline */}
-          <h2 className="font-serif text-3xl font-bold leading-tight text-dark-gray lg:text-4xl">
-            {report.headline}
-          </h2>
+          {/* ── Share bar ── */}
+          <ShareBar share={report.share} />
 
-          {/* KPI cards */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {/* ── Podcast ── */}
+          <div className="mt-3">
+            <PodcastPlayer podcastUrl={report.podcast_url} generateText={report.podcast_generate_text} />
+          </div>
+
+          {/* ── KPI cards ── */}
+          <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
             {report.kpis.map((kpi) => (
               <KPICard
                 key={kpi.label}
@@ -560,29 +1015,98 @@ export default function MarketReportPage() {
             ))}
           </div>
 
-          {/* Narrative */}
-          <Narrative text={report.narrative} />
-
-          {/* Podcast */}
-          <PodcastPlayer url={report.podcast_url} />
-
-          {/* Charts */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <PriceTrendChart data={report.charts.sales_price} />
-            <PriceDistributionChart data={report.price_distribution} />
+          {/* ── Opening narrative ── */}
+          <div className="mt-4">
+            <NarrativeSection html={report.narrative.opening} />
           </div>
 
-          {/* Recent sales */}
+          {/* ── Supply section ── */}
+          <SectionTitle>Supply</SectionTitle>
+          <NarrativeSection html={report.narrative.supply} />
+
+          {/* ── Demand & Pricing section ── */}
+          <SectionTitle>Demand &amp; Pricing</SectionTitle>
+          <NarrativeSection html={report.narrative.demand} />
+
+          {/* ── Price segment breakdown ── */}
+          {report.narrative.segment_breakdown && (
+            <>
+              <SectionTitle>Breaking It Down by Price Point</SectionTitle>
+              <NarrativeSection html={report.narrative.segment_breakdown} />
+            </>
+          )}
+
+          {/* ── Pull quote ── */}
+          <div
+            className="my-3.5 border-l-[3px] px-4 py-3 text-[0.95rem] italic leading-relaxed"
+            style={{
+              borderColor: GOLD,
+              background: CREAM,
+              color: DARK,
+              fontFamily: "'Playfair Display', Georgia, serif",
+            }}
+          >
+            {report.narrative.pull_quote}
+          </div>
+
+          {/* ── Recommendations ── */}
+          <SectionTitle>What This Means for Buyers &amp; Sellers</SectionTitle>
+          <NarrativeSection html={report.narrative.recommendations} />
+
+          {/* ── Charts ── */}
+          <Divider />
+          <SectionTitle>Market Trends</SectionTitle>
+          <ChartTabs monthly={report.charts.monthly} yearly={report.charts.yearly} />
+
+          {/* ── Year-over-Year table ── */}
+          <Divider />
+          <SectionTitle>Year-over-Year Data</SectionTitle>
+          <YearlyTable data={report.charts.yearly} />
+
+          {/* ── Recent notable sales ── */}
+          <Divider />
+          <SectionTitle>Recent Notable Sales</SectionTitle>
           <RecentSalesTable sales={report.recent_sales} />
 
-          {/* Footer */}
-          <div className="rounded-lg border-t-2 border-gold bg-cream px-6 py-4 text-center print:break-before-avoid">
-            <p className="font-serif text-sm font-medium text-dark-gray">
-              MarketStats by CertiHomes
+          {/* ── Price distribution ── */}
+          {report.price_distribution.length > 0 && (
+            <>
+              <Divider />
+              <SectionTitle>Price Distribution (Last 12 Months)</SectionTitle>
+              <PriceDistributionChart data={report.price_distribution} />
+            </>
+          )}
+
+          {/* ── Closing CTA ── */}
+          <Divider />
+          <div className="text-center">
+            <p
+              className="text-[0.95rem] italic leading-relaxed"
+              style={{ color: BODY, fontFamily: "'Inter', sans-serif" }}
+              dangerouslySetInnerHTML={{ __html: report.narrative.closing }}
+            />
+          </div>
+
+          {/* ── Second share bar ── */}
+          <div className="mt-3 text-center">
+            <p className="mb-1.5 text-[0.78rem]" style={{ color: "#999" }}>
+              Share this report
             </p>
-            <p className="mt-1 text-xs text-body-gray">
-              Data sourced from CJMLS/FMLS. For informational purposes only.
-            </p>
+            <ShareBar share={report.share} centered />
+          </div>
+
+          {/* ── Data source footer ── */}
+          <div
+            className="mt-4 border px-4 py-3 text-[0.8rem]"
+            style={{ background: CREAM, borderColor: BORDER, color: "#53555A", fontFamily: "'Inter', sans-serif" }}
+          >
+            <strong>Data Sources:</strong> Data in this report were sourced from {report.mls_label} via Bridge
+            Interactive API. Report generated {report.report_date}. Data reflects recorded transactions and may not
+            capture all market activity.
+            <br />
+            <span className="text-[0.78rem]" style={{ color: "#999" }}>
+              MarketStats &mdash; marketstats.certihomes.com
+            </span>
           </div>
         </div>
       )}

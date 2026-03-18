@@ -258,24 +258,92 @@ export interface PriceDistributionBucketAPI {
   count: number;
 }
 
+export interface MonthlyDataAPI {
+  month: string;
+  sales: number;
+  avg_price: number;
+  median_price: number;
+  total_volume: number;
+  avg_dom: number;
+}
+
+export interface YearlyDataAPI {
+  year: number;
+  sales: number;
+  avg_price: number;
+  median_price: number;
+  total_volume: number;
+  avg_dom: number;
+  max_price: number;
+}
+
+export interface NarrativeSectionsAPI {
+  opening: string;
+  supply: string;
+  demand: string;
+  segment_breakdown: string | null;
+  pull_quote: string;
+  recommendations: string;
+  closing: string;
+}
+
+export interface ShareURLsAPI {
+  title: string;
+  text: string;
+  url: string;
+  linkedin: string;
+  twitter: string;
+  facebook: string;
+  email: string;
+}
+
 export interface ReportResponseAPI {
   city: string;
   state: string;
+  mls_label: string;
   data_through: string;
+  report_month: string;
+  report_date: string;
   headline: string;
-  narrative: string;
+  price_segment: string;
+  fell_back: boolean;
+  original_price_label: string | null;
+  narrative: NarrativeSectionsAPI;
   kpis: ReportKPIAPI[];
+  stats: {
+    r_sales: number;
+    p_sales: number;
+    r_avg: number;
+    r_med: number;
+    r_dom: number;
+    r_vol: number;
+    r_max: number;
+    active: number;
+    pending: number;
+    coming: number;
+    sp_lp: number;
+    mos: number;
+    price_chg: number;
+    sales_chg: number;
+    dom_chg: number;
+  };
   charts: {
-    sales_price: Array<{ Month: string; "Sales Price": number }>;
-    closed_sales: Array<{ Month: string; "Closed Sales": number }>;
+    monthly: MonthlyDataAPI[];
+    yearly: YearlyDataAPI[];
   };
   price_distribution: PriceDistributionBucketAPI[];
   recent_sales: RecentSaleAPI[];
+  share: ShareURLsAPI;
   podcast_url: string;
+  podcast_generate_text: string;
 }
 
 export interface FeaturedCitiesResponseAPI {
-  cities: Array<{ city: string; state: string }>;
+  cities: Array<{ city: string; state: string; desc?: string }>;
+}
+
+export interface CitiesListResponseAPI {
+  cities: string[];
 }
 
 // ── Feeds types ──
@@ -403,11 +471,16 @@ export const api = {
   }) => apiFetch<ForecastResponseAPI>("/api/forecast/", { params }),
 
   // Report
-  getReport: (city: string, state: string) =>
-    apiFetch<ReportResponseAPI>("/api/report/", { params: { city, state } }),
+  getReport: (city: string, state: string, min_price?: number, price_label?: string) =>
+    apiFetch<ReportResponseAPI>("/api/report/", {
+      params: { city, state, min_price: min_price ?? 0, price_label: price_label ?? "All Prices" },
+    }),
 
   getFeaturedCities: () =>
     apiFetch<FeaturedCitiesResponseAPI>("/api/report/featured-cities"),
+
+  getReportCities: () =>
+    apiFetch<CitiesListResponseAPI>("/api/report/cities"),
 
   // Feeds
   getFeeds: () => apiFetch<FeedsResponseAPI>("/api/feeds/"),
