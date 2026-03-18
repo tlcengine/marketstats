@@ -7,16 +7,21 @@
 - [x] FastAPI backend scaffold
 - [x] shadcn/ui initialization
 - [x] Environment config (.env.local)
-- [x] PM2 deployment (ecosystem.config.js + start-api.sh)
+- [x] PM2 deployment (ecosystem.config.js + start-api.sh + start-frontend.sh)
 
 ## Phase 2: Backend API [DONE]
 - [x] MongoDB async connection (Motor via db.py)
 - [x] Port MLS.py data abstraction → backend/models/mls.py
 - [x] Port data_generators.py → backend/services/data_generator.py
 - [x] `/api/metrics` endpoint — time-series metric data
-- [x] `/api/listings` endpoint — browse/filter listings
+- [x] `/api/listings` endpoint — browse/filter listings with pagination + sorting
 - [x] `/api/geographies` endpoint — states, counties, cities, zips
-- [x] `/api/report` endpoint — market report data
+- [x] `/api/report` endpoint — full market report (narrative, charts, podcast, share URLs)
+- [x] `/api/forecast` endpoint — historical + linear regression forecast
+- [x] `/api/tax` endpoint — summary, distribution, search, predict
+- [x] `/api/faststats` endpoint — all 13 metrics for a geography/month
+- [x] `/api/feeds` endpoint — MLS feed status, doc counts, sync trigger
+- [x] `/api/branding` endpoint — agent profile CRUD with image upload
 - [x] Pydantic schemas for all request/response models
 - [x] Breakout analysis service (backend/services/breakout.py)
 - [ ] API tests (pytest)
@@ -46,37 +51,50 @@
 - [x] Rolling average toggle (1, 3, 6, 12 months)
 - [x] Chart controls (line/bar, timeframe, rolling, share/export)
 
-## Phase 5: Map Mode [IN PROGRESS]
+## Phase 5: Map Mode [DONE]
 - [x] Leaflet map component (AreaMap)
 - [x] Map toggle in chart controls
-- [ ] Draw tools (polygon, circle, rectangle)
+- [x] Draw tools (polygon, circle, rectangle) via leaflet-draw
+- [x] Save/Load custom drawn areas (Zustand store)
+- [x] Drawn areas rendered as colored overlays on map
 - [ ] Point-in-polygon filtering (server-side)
-- [ ] Save/Load custom areas
 
-## Phase 6: Chart Export [PARTIAL]
+## Phase 6: Chart Export [DONE]
 - [x] CSV download
-- [ ] PNG export
-- [ ] PDF export
-- [ ] Embed code generator
+- [x] PNG export (html2canvas-pro at 2x scale)
+- [x] PDF export (jsPDF + html2canvas-pro, branded with gold accents)
+- [x] Embed code generator (iframe snippet modal)
+- [x] Copy link to clipboard
 - [ ] Share URL with encoded state
 
-## Phase 7: Additional Pages [NOT STARTED]
-- [ ] Browse Listings page (data table + map)
-- [ ] Price Forecast page
-- [ ] Tax Analysis page
-- [ ] Tax Predictor page
-- [ ] FastStats Report page
-- [ ] Market Report page (narrative + podcast player)
-- [ ] Branding & Profile page (admin)
-- [ ] Feed Manager page (admin)
+## Phase 7: Additional Pages [DONE]
+- [x] Browse Listings page (sortable table, server-side pagination, detail slide-out)
+- [x] Price Forecast page (linear regression, confidence band, KPI cards)
+- [x] Tax Analysis page (distributions, effective rates, property search)
+- [x] Tax Predictor page (comparable-based prediction, range indicator)
+- [x] FastStats Report page (13 KPI cards, summary paragraph, print)
+- [x] Market Report page (full Streamlit parity — narrative, podcast, charts, tables)
+- [x] Branding & Profile page (form, image upload, live preview)
+- [x] Feed Manager page (9 feeds, status badges, sync trigger)
 - [x] My Account page
 
-## Phase 8: Production Polish
-- [x] PM2 process management (frontend + backend)
+## Phase 8: Production Polish [DONE]
+- [x] Production build (`npm run build` + `next start`)
+- [x] PM2 process management (start-frontend.sh + start-api.sh)
 - [x] Nginx config with SSL (Let's Encrypt)
 - [x] Google OAuth redirect URI configured
-- [ ] Production build (npm run build + static serving)
+- [x] AUTH_TRUST_HOST=true for Nginx proxy
+- [x] allowedDevOrigins configured
 - [ ] Error monitoring (Sentry)
 - [ ] Performance optimization (ISR, caching)
 - [ ] SEO meta tags
 - [ ] Print styles for reports
+
+## Remaining
+- [ ] API tests (pytest)
+- [ ] Point-in-polygon server-side filtering for drawn areas
+- [ ] Share URL with encoded chart state
+- [ ] Sentry error monitoring
+- [ ] ISR/caching optimization
+- [ ] SEO meta tags
+- [ ] Print styles for reports/faststats
