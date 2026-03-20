@@ -3,6 +3,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useDashboardStore } from "@/lib/store";
 import type { BreakoutField } from "@/lib/types";
+import CustomRangeModal from "./CustomRangeModal";
 
 // ── Filter column header with breakout icon ──
 
@@ -141,6 +142,14 @@ const BEDROOM_OPTIONS = [
   { label: "5+ BR", value: "5+" },
 ];
 
+const BATHROOM_OPTIONS = [
+  { label: "All Bathrooms", value: "all" },
+  { label: "1 Bathroom or Fewer", value: "1" },
+  { label: "2 Bathrooms", value: "2" },
+  { label: "3 Bathrooms", value: "3" },
+  { label: "4 Bathrooms or More", value: "4+" },
+];
+
 const CONSTRUCTION_OPTIONS = [
   { label: "All", value: "all" },
   { label: "New Construction", value: "new" },
@@ -162,6 +171,10 @@ export default function FilterSidebar() {
   const filters = useDashboardStore((s) => s.filters);
   const setFilters = useDashboardStore((s) => s.setFilters);
   const resetFilters = useDashboardStore((s) => s.resetFilters);
+  const customRanges = useDashboardStore((s) => s.customRanges);
+
+  const [priceModalOpen, setPriceModalOpen] = useState(false);
+  const [sqftModalOpen, setSqftModalOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -234,14 +247,22 @@ export default function FilterSidebar() {
 
         {/* PRICE RANGE */}
         <div className="min-w-[150px] shrink-0 border-r border-gray-100 px-3 py-2">
-          <FilterColumnHeader label="Price Range" breakoutKey="priceRange" />
+          <div className="mb-2 flex items-center gap-1.5">
+            <FilterColumnHeader label="Price Range" breakoutKey="priceRange" />
+            <button
+              onClick={() => setPriceModalOpen(true)}
+              className="ml-auto text-[10px] font-semibold uppercase text-[#DAAA00] hover:text-[#b88f00]"
+            >
+              Custom
+            </button>
+          </div>
           <div className="flex flex-col gap-0.5">
             {PRICE_PRESETS.map((preset) => {
               const isActive =
                 filters.priceRange?.min === preset.min &&
                 filters.priceRange?.max === preset.max;
               const isAll = preset.min === 0 && preset.max === 999_999_999;
-              const isActiveAll = isAll && filters.priceRange === null;
+              const isActiveAll = isAll && filters.priceRange === null && customRanges.price.length === 0;
 
               return (
                 <label
@@ -265,20 +286,13 @@ export default function FilterSidebar() {
                 </label>
               );
             })}
+            {/* Show custom ranges indicator */}
+            {customRanges.price.length > 0 && (
+              <div className="mt-1 rounded bg-amber-50 px-1.5 py-1 text-[10px] text-amber-700">
+                {customRanges.price.length} custom range{customRanges.price.length > 1 ? "s" : ""} active
+              </div>
+            )}
           </div>
-        </div>
-
-        {/* CONSTRUCTION */}
-        <div className="min-w-[140px] shrink-0 border-r border-gray-100 px-3 py-2">
-          <FilterColumnHeader label="Construction" breakoutKey="yearBuilt" />
-          <RadioGroup
-            name="construction"
-            options={CONSTRUCTION_OPTIONS}
-            value={filters.construction}
-            onChange={(val) =>
-              setFilters({ construction: val as "all" | "new" | "existing" })
-            }
-          />
         </div>
 
         {/* BEDROOMS */}
@@ -293,15 +307,23 @@ export default function FilterSidebar() {
         </div>
 
         {/* SQ FOOTAGE */}
-        <div className="min-w-[140px] shrink-0 px-3 py-2">
-          <FilterColumnHeader label="Sq Footage" breakoutKey="sqft" />
+        <div className="min-w-[140px] shrink-0 border-r border-gray-100 px-3 py-2">
+          <div className="mb-2 flex items-center gap-1.5">
+            <FilterColumnHeader label="Sq Footage" breakoutKey="sqft" />
+            <button
+              onClick={() => setSqftModalOpen(true)}
+              className="ml-auto text-[10px] font-semibold uppercase text-[#DAAA00] hover:text-[#b88f00]"
+            >
+              Custom
+            </button>
+          </div>
           <div className="flex flex-col gap-0.5">
             {SQFT_PRESETS.map((preset) => {
               const isActive =
                 filters.sqftRange?.min === preset.min &&
                 filters.sqftRange?.max === preset.max;
               const isAll = preset.min === 0 && preset.max === 999_999;
-              const isActiveAll = isAll && filters.sqftRange === null;
+              const isActiveAll = isAll && filters.sqftRange === null && customRanges.sqft.length === 0;
 
               return (
                 <label
@@ -325,7 +347,37 @@ export default function FilterSidebar() {
                 </label>
               );
             })}
+            {/* Show custom ranges indicator */}
+            {customRanges.sqft.length > 0 && (
+              <div className="mt-1 rounded bg-amber-50 px-1.5 py-1 text-[10px] text-amber-700">
+                {customRanges.sqft.length} custom range{customRanges.sqft.length > 1 ? "s" : ""} active
+              </div>
+            )}
           </div>
+        </div>
+
+        {/* BATHROOMS */}
+        <div className="min-w-[150px] shrink-0 border-r border-gray-100 px-3 py-2">
+          <FilterColumnHeader label="Bathrooms" breakoutKey="bathrooms" />
+          <RadioGroup
+            name="bathrooms"
+            options={BATHROOM_OPTIONS}
+            value={filters.bathrooms}
+            onChange={(val) => setFilters({ bathrooms: val })}
+          />
+        </div>
+
+        {/* CONSTRUCTION */}
+        <div className="min-w-[140px] shrink-0 px-3 py-2">
+          <FilterColumnHeader label="Construction" breakoutKey="yearBuilt" />
+          <RadioGroup
+            name="construction"
+            options={CONSTRUCTION_OPTIONS}
+            value={filters.construction}
+            onChange={(val) =>
+              setFilters({ construction: val as "all" | "new" | "existing" })
+            }
+          />
         </div>
       </div>
 
@@ -338,6 +390,10 @@ export default function FilterSidebar() {
           Reset Filters
         </button>
       </div>
+
+      {/* Custom range modals */}
+      <CustomRangeModal open={priceModalOpen} onOpenChange={setPriceModalOpen} type="price" />
+      <CustomRangeModal open={sqftModalOpen} onOpenChange={setSqftModalOpen} type="sqft" />
     </div>
   );
 }

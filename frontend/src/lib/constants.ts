@@ -14,6 +14,8 @@ export const METRICS = [
   "AbsorptionRate",
   "AverageSalesPrice",
   "ListToSaleRatio",
+  "ShowsToPending",
+  "ShowsPerListing",
 ] as const;
 
 export type MetricKey = (typeof METRICS)[number];
@@ -32,6 +34,8 @@ export const METRIC_LABELS: Record<MetricKey, string> = {
   AbsorptionRate: "Absorption Rate",
   AverageSalesPrice: "Average Sales Price",
   ListToSaleRatio: "List-to-Sale Ratio",
+  ShowsToPending: "Shows to Pending",
+  ShowsPerListing: "Shows Per Listing",
 };
 
 export const METRIC_SHORT: Record<MetricKey, string> = {
@@ -48,6 +52,8 @@ export const METRIC_SHORT: Record<MetricKey, string> = {
   AbsorptionRate: "Absorb",
   AverageSalesPrice: "Avg Price",
   ListToSaleRatio: "L/S Ratio",
+  ShowsToPending: "Shows/Pend",
+  ShowsPerListing: "Shows/List",
 };
 
 export const METRIC_FORMATS: Record<MetricKey, string> = {
@@ -64,6 +70,8 @@ export const METRIC_FORMATS: Record<MetricKey, string> = {
   AbsorptionRate: ".1%",
   AverageSalesPrice: "$,.0f",
   ListToSaleRatio: ".3f",
+  ShowsToPending: ".1f",
+  ShowsPerListing: ".1f",
 };
 
 // BHS-inspired color palette

@@ -18,6 +18,8 @@ METRIC_TO_COLUMN: dict[str, str] = {
     "DollarVolume": "Dollar Volume",
     "AbsorptionRate": "Absorption Rate",
     "MonthsSupply": "Months Supply",
+    "ShowsToPending": "Shows to Pending",
+    "ShowsPerListing": "Shows Per Listing",
 }
 
 # Y-axis format strings (keyed by internal column name)
@@ -35,6 +37,8 @@ AXIS_FORMATS: dict[str, str] = {
     "Absorption Rate": "%",
     "Percent of Original List Price": "%",
     "Percent of Last List Price": "%",
+    "Shows to Pending": "f",
+    "Shows Per Listing": "f",
 }
 
 # Human-readable metric labels
@@ -53,6 +57,8 @@ METRIC_LABELS: dict[str, str] = {
     "DollarVolume": "Dollar Volume",
     "AbsorptionRate": "Absorption Rate",
     "MonthsSupply": "Months Supply",
+    "ShowsToPending": "Shows to Pending",
+    "ShowsPerListing": "Shows Per Listing",
 }
 
 CLOSED_STATUSES = frozenset({
@@ -80,4 +86,13 @@ BEDROOM_RANGES = [
     ("3 Bedrooms", 3, 3),
     ("4 Bedrooms", 4, 4),
     ("5+ Bedrooms", 5, 99),
+]
+
+# Bathroom buckets
+BATHROOM_RANGES = [
+    ("All Bathrooms", 0, 99),
+    ("1 or Fewer", 0, 1),
+    ("2 Bathrooms", 2, 2),
+    ("3 Bathrooms", 3, 3),
+    ("4 or More", 4, 99),
 ]

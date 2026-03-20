@@ -247,6 +247,50 @@ def get_months_supply(fl: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(records) if records else pd.DataFrame(columns=["Months Supply", "Month"])
 
 
+def get_shows_to_pending(fl: pd.DataFrame) -> pd.DataFrame:
+    """Average number of showings before a listing goes pending.
+    Requires ShowingsCount field in the data. Returns empty if not available."""
+    if "ShowingsCount" not in fl.columns:
+        return pd.DataFrame(columns=["Shows to Pending", "Month"])
+    ps = fl[fl["StandardStatus"].isin(["Pending", "P-Pending Sale"])].copy()
+    ps["ShowingsCount"] = pd.to_numeric(ps["ShowingsCount"], errors="coerce")
+    ps = ps.dropna(subset=["ShowingsCount"])
+    if ps.empty:
+        return pd.DataFrame(columns=["Shows to Pending", "Month"])
+    grouped = ps.groupby(
+        [ps["OnMarketDate"].dt.year.rename("year"),
+         ps["OnMarketDate"].dt.month.rename("month")]
+    )[["ShowingsCount"]]
+    result = grouped.mean(numeric_only=True).reset_index()
+    result["Month"] = pd.to_datetime(
+        [f"{int(r.year)}-{int(r.month)}" for _, r in result.iterrows()]
+    )
+    result.rename(columns={"ShowingsCount": "Shows to Pending"}, inplace=True)
+    return result[["Shows to Pending", "Month"]]
+
+
+def get_shows_per_listing(fl: pd.DataFrame) -> pd.DataFrame:
+    """Average number of showings per listing per month.
+    Requires ShowingsCount field in the data. Returns empty if not available."""
+    if "ShowingsCount" not in fl.columns:
+        return pd.DataFrame(columns=["Shows Per Listing", "Month"])
+    sc = fl.copy()
+    sc["ShowingsCount"] = pd.to_numeric(sc["ShowingsCount"], errors="coerce")
+    sc = sc.dropna(subset=["ShowingsCount"])
+    if sc.empty:
+        return pd.DataFrame(columns=["Shows Per Listing", "Month"])
+    grouped = sc.groupby(
+        [sc["OnMarketDate"].dt.year.rename("year"),
+         sc["OnMarketDate"].dt.month.rename("month")]
+    )[["ShowingsCount"]]
+    result = grouped.mean(numeric_only=True).reset_index()
+    result["Month"] = pd.to_datetime(
+        [f"{int(r.year)}-{int(r.month)}" for _, r in result.iterrows()]
+    )
+    result.rename(columns={"ShowingsCount": "Shows Per Listing"}, inplace=True)
+    return result[["Shows Per Listing", "Month"]]
+
+
 # ── Dispatcher ──
 
 _METRIC_FUNC_MAP = {
@@ -264,6 +308,8 @@ _METRIC_FUNC_MAP = {
     "DollarVolume": get_dollar_vol,
     "AbsorptionRate": get_absorption,
     "MonthsSupply": get_months_supply,
+    "ShowsToPending": get_shows_to_pending,
+    "ShowsPerListing": get_shows_per_listing,
 }
 
 

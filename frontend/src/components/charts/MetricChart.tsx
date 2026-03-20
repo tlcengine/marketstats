@@ -7,11 +7,13 @@ import {
   BarChart,
   Line,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
+  ReferenceLine,
 } from "recharts";
 import type { MetricKey } from "@/lib/constants";
 import { AREA_COLORS, METRIC_LABELS } from "@/lib/constants";
@@ -50,11 +52,13 @@ function CustomTooltip({
   payload,
   label,
   metric,
+  isPercentChange,
 }: {
   active?: boolean;
   payload?: TooltipPayloadItem[];
   label?: string;
   metric: MetricKey;
+  isPercentChange?: boolean;
 }) {
   if (!active || !payload || payload.length === 0) return null;
 
@@ -74,7 +78,9 @@ function CustomTooltip({
           />
           <span className="text-gray-600">{entry.name}:</span>
           <span className="font-semibold" style={{ color: entry.color }}>
-            {formatMetricValue(entry.value, metric)}
+            {isPercentChange
+              ? `${entry.value >= 0 ? "+" : ""}${entry.value.toFixed(1)}%`
+              : formatMetricValue(entry.value, metric)}
           </span>
         </div>
       ))}
@@ -98,8 +104,37 @@ interface MetricChartProps {
 // ── Helpers ──
 
 /**
+ * Compute Year-to-Date aggregation: for each year, accumulate values
+ * from January through each month, producing a running YTD average.
+ */
+function applyYtd(series: { month: string; value: number }[]): { month: string; value: number }[] {
+  const byYear: Record<string, { month: string; value: number }[]> = {};
+  for (const pt of series) {
+    const year = pt.month.slice(0, 4);
+    if (!byYear[year]) byYear[year] = [];
+    byYear[year].push(pt);
+  }
+
+  const result: { month: string; value: number }[] = [];
+  for (const year of Object.keys(byYear).sort()) {
+    const pts = byYear[year].sort((a, b) => a.month.localeCompare(b.month));
+    let cumSum = 0;
+    let cumCount = 0;
+    for (const pt of pts) {
+      cumSum += pt.value;
+      cumCount += 1;
+      result.push({
+        month: pt.month,
+        value: Math.round((cumSum / cumCount) * 100) / 100,
+      });
+    }
+  }
+  return result;
+}
+
+/**
  * Pivot data from flat array into Recharts-friendly rows keyed by month.
- * Apply rolling average if rolling > 1.
+ * Apply rolling average if rolling > 1, or YTD aggregation if rolling === "ytd".
  */
 function pivotData(
   data: MetricDataPoint[],
@@ -115,8 +150,12 @@ function pivotData(
       .sort((a, b) => a.month.localeCompare(b.month));
   }
 
-  // Apply rolling average per area
-  if (rolling > 1) {
+  // Apply rolling average or YTD per area
+  if (rolling === "ytd") {
+    for (const id of areaIds) {
+      byArea[id] = applyYtd(byArea[id]);
+    }
+  } else if (rolling > 1) {
     for (const id of areaIds) {
       const series = byArea[id];
       const smoothed: { month: string; value: number }[] = [];
@@ -153,6 +192,55 @@ function pivotData(
   });
 }
 
+/**
+ * Compute YoY percent change from pivoted data.
+ * For each month, finds the same month 12 months prior and computes
+ * ((current - prior) / prior) * 100 as a percentage.
+ */
+function computePercentChange(
+  pivoted: Record<string, unknown>[],
+  areaNames: string[]
+): Record<string, unknown>[] {
+  // Build lookup by month
+  const monthMap: Record<string, Record<string, unknown>> = {};
+  for (const row of pivoted) {
+    monthMap[row.month as string] = row;
+  }
+
+  const result: Record<string, unknown>[] = [];
+
+  for (const row of pivoted) {
+    const month = row.month as string;
+    // Find month 12 months prior
+    const d = new Date(month + "T00:00:00");
+    d.setFullYear(d.getFullYear() - 1);
+    const priorMonth = d.toISOString().slice(0, 10);
+    // Use first day of month format matching
+    const priorKey = `${priorMonth.slice(0, 7)}-01`;
+    const priorRow = monthMap[priorKey] || monthMap[priorMonth];
+
+    if (!priorRow) continue;
+
+    const newRow: Record<string, unknown> = { month };
+    let hasValue = false;
+
+    for (const name of areaNames) {
+      const current = row[name] as number | null;
+      const prior = priorRow[name] as number | null;
+      if (current != null && prior != null && prior !== 0) {
+        newRow[name] = Math.round(((current - prior) / prior) * 10000) / 100; // percentage
+        hasValue = true;
+      } else {
+        newRow[name] = null;
+      }
+    }
+
+    if (hasValue) result.push(newRow);
+  }
+
+  return result;
+}
+
 // ── Component ──
 
 const MetricChart = forwardRef<HTMLDivElement, MetricChartProps>(function MetricChart(
@@ -173,10 +261,17 @@ const MetricChart = forwardRef<HTMLDivElement, MetricChartProps>(function Metric
     [data, areaIds, areaNames, rolling]
   );
 
+  const pctChangeData = useMemo(
+    () => (chartType === "percentChange" ? computePercentChange(pivoted, areaNames) : []),
+    [chartType, pivoted, areaNames]
+  );
+
   const metricLabel = METRIC_LABELS[metric];
+  const isPercentChange = chartType === "percentChange";
+  const chartData = isPercentChange ? pctChangeData : pivoted;
 
   const commonProps = {
-    data: pivoted,
+    data: chartData,
     margin: { top: 8, right: 24, left: 12, bottom: 4 },
   };
 
@@ -189,16 +284,31 @@ const MetricChart = forwardRef<HTMLDivElement, MetricChartProps>(function Metric
     },
     tickLine: false,
     axisLine: { stroke: "#D9D8D6" },
-    interval: Math.max(0, Math.floor(pivoted.length / 12) - 1),
+    interval: Math.max(0, Math.floor(chartData.length / 12) - 1),
   };
 
-  const yAxisProps = {
-    tick: { fontSize: 11, fill: "#53555A" },
-    tickFormatter: (val: number) => formatAxisValue(val, metric),
-    tickLine: false,
-    axisLine: false,
-    width: 70,
-  };
+  const yAxisProps = isPercentChange
+    ? {
+        tick: { fontSize: 11, fill: "#53555A" },
+        tickFormatter: (val: number) => `${val >= 0 ? "+" : ""}${val.toFixed(1)}%`,
+        tickLine: false,
+        axisLine: false,
+        width: 70,
+      }
+    : {
+        tick: { fontSize: 11, fill: "#53555A" },
+        tickFormatter: (val: number) => formatAxisValue(val, metric),
+        tickLine: false,
+        axisLine: false,
+        width: 70,
+      };
+
+  const rollingLabel =
+    rolling === "ytd"
+      ? "Year-to-Date"
+      : typeof rolling === "number" && rolling > 1
+        ? `${rolling}-mo rolling avg`
+        : null;
 
   return (
     <div ref={ref}>
@@ -206,10 +316,10 @@ const MetricChart = forwardRef<HTMLDivElement, MetricChartProps>(function Metric
         className="mb-3 text-lg font-semibold tracking-tight"
         style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#181818" }}
       >
-        {metricLabel}
-        {rolling > 1 && (
+        {isPercentChange ? `${metricLabel} — YoY % Change` : metricLabel}
+        {rollingLabel && (
           <span className="ml-2 text-sm font-normal text-gray-400">
-            ({rolling}-mo rolling avg)
+            ({rollingLabel})
           </span>
         )}
       </h2>
@@ -246,6 +356,47 @@ const MetricChart = forwardRef<HTMLDivElement, MetricChartProps>(function Metric
               />
             ))}
           </LineChart>
+        ) : chartType === "percentChange" ? (
+          <BarChart {...commonProps} barGap={2} barCategoryGap="15%">
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" vertical={false} />
+            <XAxis {...xAxisProps} />
+            <YAxis {...yAxisProps} />
+            <ReferenceLine y={0} stroke="#888" strokeWidth={1} />
+            <Tooltip
+              content={<CustomTooltip metric={metric} isPercentChange />}
+              cursor={{ fill: "rgba(218,170,0,0.08)" }}
+            />
+            {legendVisible && (
+              <Legend
+                wrapperStyle={{
+                  fontSize: 12,
+                  fontFamily: "Inter, sans-serif",
+                  paddingTop: 8,
+                }}
+              />
+            )}
+            {areaNames.map((name, idx) => (
+              <Bar
+                key={name}
+                dataKey={name}
+                maxBarSize={40}
+                radius={[3, 3, 0, 0]}
+                fill={AREA_COLORS[idx % AREA_COLORS.length]}
+              >
+                {chartData.map((row, i) => {
+                  const val = row[name] as number | null;
+                  // Color green for positive, red for negative; use area color as fallback
+                  const color =
+                    val != null
+                      ? val >= 0
+                        ? "#22c55e"
+                        : "#ef4444"
+                      : AREA_COLORS[idx % AREA_COLORS.length];
+                  return <Cell key={i} fill={color} />;
+                })}
+              </Bar>
+            ))}
+          </BarChart>
         ) : (
           <BarChart {...commonProps} barGap={2} barCategoryGap="15%">
             <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" vertical={false} />

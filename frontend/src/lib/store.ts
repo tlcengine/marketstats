@@ -11,6 +11,7 @@ import type {
   YearRange,
   RollingWindow,
   DrawnShape,
+  CustomRanges,
 } from "./types";
 import type { MetricKey } from "./constants";
 
@@ -19,6 +20,7 @@ const DEFAULT_FILTERS: FilterState = {
   priceRange: null,
   construction: "all",
   bedrooms: "all",
+  bathrooms: "all",
   sqftRange: null,
   yearBuiltRange: null,
 };
@@ -156,5 +158,12 @@ export const useDashboardStore = create<DashboardState>((set) => ({
         (a) => a.shape.id !== shapeId
       ),
       areas: state.areas.filter((a) => a.drawnShape?.id !== shapeId),
+    })),
+
+  // Custom ranges
+  customRanges: { price: [], sqft: [] },
+  setCustomRanges: (patch: Partial<CustomRanges>) =>
+    set((state) => ({
+      customRanges: { ...state.customRanges, ...patch },
     })),
 }));

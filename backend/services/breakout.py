@@ -94,6 +94,32 @@ def apply_bedroom_breakout(
     return pd.concat(results) if results else pd.DataFrame()
 
 
+def apply_bathroom_breakout(
+    df: pd.DataFrame,
+    dataset_label: str,
+    group_func: Callable[[pd.DataFrame], pd.DataFrame],
+) -> pd.DataFrame:
+    bath_col = "BathroomsTotalDecimal"
+    if bath_col not in df.columns:
+        return pd.DataFrame()
+    df = df.copy()
+    df[bath_col] = pd.to_numeric(df[bath_col], errors="coerce")
+    bath_buckets = [
+        (lambda d: d[d[bath_col] <= 1], "1 or Fewer"),
+        (lambda d: d[d[bath_col].between(1.5, 2.5)], "2 Bathrooms"),
+        (lambda d: d[d[bath_col].between(2.5, 3.5)], "3 Bathrooms"),
+        (lambda d: d[d[bath_col] >= 3.5], "4 or More"),
+    ]
+    results = []
+    for filter_fn, label in bath_buckets:
+        subset = filter_fn(df)
+        if not subset.empty:
+            result = group_func(subset)
+            result["Label"] = f"{dataset_label} - {label}"
+            results.append(result)
+    return pd.concat(results) if results else pd.DataFrame()
+
+
 def apply_year_built_breakout(
     df: pd.DataFrame,
     dataset_label: str,
@@ -119,6 +145,8 @@ def get_breakout_values(df: pd.DataFrame, variable: str) -> list[str]:
         return [r[2] for r in PRICE_RANGES]
     elif variable == "Bedrooms":
         return ["1 or Fewer", "2 Bedrooms", "3 Bedrooms", "4 or More"]
+    elif variable == "Bathrooms":
+        return ["1 or Fewer", "2 Bathrooms", "3 Bathrooms", "4 or More"]
     elif variable == "SquareFootage":
         return [r[2] for r in SQFT_RANGES]
     elif variable == "YearBuilt":
@@ -142,6 +170,8 @@ def apply_breakout_for_variable(
         return apply_range_breakout(df, "ListPrice", ranges, dataset_label, group_func)
     elif variable == "Bedrooms":
         return apply_bedroom_breakout(df, dataset_label, group_func)
+    elif variable == "Bathrooms":
+        return apply_bathroom_breakout(df, dataset_label, group_func)
     elif variable == "SquareFootage":
         label_map = {r[2]: r for r in SQFT_RANGES}
         ranges = [label_map[v] for v in selected_values if v in label_map]

@@ -3,10 +3,20 @@
 import type { MetricKey } from "./constants";
 
 export type GeoType = "county" | "city" | "zip" | "custom";
-export type ChartType = "line" | "bar";
+export type ChartType = "line" | "bar" | "percentChange";
 export type StatType = "median" | "average";
 export type YearRange = 1 | 3 | 5 | 10 | 20;
-export type RollingWindow = 1 | 3 | 6 | 12;
+export type RollingWindow = 1 | 3 | 6 | 12 | "ytd";
+
+export interface CustomRangeRow {
+  min: string; // string so user can leave blank for infinity
+  max: string;
+}
+
+export interface CustomRanges {
+  price: CustomRangeRow[];
+  sqft: CustomRangeRow[];
+}
 
 export interface DrawnShape {
   id: string;
@@ -33,6 +43,7 @@ export interface FilterState {
   priceRange: { min: number; max: number } | null;
   construction: "all" | "new" | "existing";
   bedrooms: string;
+  bathrooms: string;
   sqftRange: { min: number; max: number } | null;
   yearBuiltRange: { min: number; max: number } | null;
 }
@@ -41,6 +52,7 @@ export type BreakoutField =
   | "propertyType"
   | "priceRange"
   | "bedrooms"
+  | "bathrooms"
   | "sqft"
   | "yearBuilt"
   | null;
@@ -125,4 +137,8 @@ export interface DashboardState {
   // Saved custom areas (persisted drawn shapes)
   savedCustomAreas: { name: string; shape: DrawnShape }[];
   removeSavedCustomArea: (shapeId: string) => void;
+
+  // Custom ranges (price / sqft)
+  customRanges: CustomRanges;
+  setCustomRanges: (ranges: Partial<CustomRanges>) => void;
 }

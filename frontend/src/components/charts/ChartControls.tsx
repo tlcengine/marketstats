@@ -154,6 +154,7 @@ export default function ChartControls({ onExport: onExportProp }: ChartControlsP
         options={[
           { label: "Line", value: "line" },
           { label: "Bar", value: "bar" },
+          { label: "% Change", value: "percentChange" },
         ]}
         value={chartType}
         onChange={setChartType}
@@ -180,6 +181,7 @@ export default function ChartControls({ onExport: onExportProp }: ChartControlsP
           { label: "3mo", value: 3 },
           { label: "6mo", value: 6 },
           { label: "12mo", value: 12 },
+          { label: "YTD", value: "ytd" },
         ]}
         value={rolling}
         onChange={setRolling}
@@ -247,7 +249,7 @@ export default function ChartControls({ onExport: onExportProp }: ChartControlsP
           <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
           <rect x="6" y="14" width="12" height="8" />
         </svg>
-        Print
+        PRINT
       </button>
     </div>
   );

@@ -21,6 +21,8 @@ const ROW_2: MetricKey[] = [
   "AbsorptionRate",
   "AverageSalesPrice",
   "ListToSaleRatio",
+  "ShowsToPending",
+  "ShowsPerListing",
 ];
 
 function MetricButton({
