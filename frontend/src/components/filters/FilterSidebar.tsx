@@ -118,29 +118,27 @@ function RadioGroup({
 // ── Constants ──
 
 const PRICE_PRESETS = [
-  { label: "All Prices", min: 0, max: 999_999_999 },
-  { label: "$209K or Less", min: 0, max: 208_999 },
-  { label: "$209K - $289K", min: 209_000, max: 288_999 },
-  { label: "$289K - $410K", min: 289_000, max: 409_999 },
-  { label: "$410K - $600K", min: 410_000, max: 599_999 },
-  { label: "$600K+", min: 600_000, max: 999_999_999 },
+  { label: "All Price Ranges", min: 0, max: 999_999_999 },
+  { label: "$188,999 or Less", min: 0, max: 188_999 },
+  { label: "$189,000 to $333,999", min: 189_000, max: 333_999 },
+  { label: "$334,000 to $464,999", min: 334_000, max: 464_999 },
+  { label: "$465,000 or More", min: 465_000, max: 999_999_999 },
 ];
 
 const PROPERTY_TYPES = [
-  "Single Family",
-  "Condo",
+  "Single Family Residence",
+  "Condo/TH",
   "Townhouse",
-  "Multi-Family",
   "Stock Cooperative",
+  "Mobile Home",
 ];
 
 const BEDROOM_OPTIONS = [
-  { label: "All", value: "all" },
-  { label: "1 or Fewer", value: "1" },
-  { label: "2 BR", value: "2" },
-  { label: "3 BR", value: "3" },
-  { label: "4 BR", value: "4" },
-  { label: "5+ BR", value: "5+" },
+  { label: "All Bedrooms", value: "all" },
+  { label: "1 Bedroom or Fewer", value: "1" },
+  { label: "2 Bedrooms", value: "2" },
+  { label: "3 Bedrooms", value: "3" },
+  { label: "4 Bedrooms or More", value: "4+" },
 ];
 
 const BATHROOM_OPTIONS = [
@@ -152,18 +150,17 @@ const BATHROOM_OPTIONS = [
 ];
 
 const CONSTRUCTION_OPTIONS = [
-  { label: "All", value: "all" },
+  { label: "All Construction Types", value: "all" },
+  { label: "Previously Owned", value: "existing" },
   { label: "New Construction", value: "new" },
-  { label: "Existing / Resale", value: "existing" },
 ];
 
 const SQFT_PRESETS = [
   { label: "All Sizes", min: 0, max: 999_999 },
-  { label: "Under 1,000", min: 0, max: 999 },
-  { label: "1,000 - 1,500", min: 1_000, max: 1_499 },
-  { label: "1,500 - 2,000", min: 1_500, max: 1_999 },
-  { label: "2,000 - 3,000", min: 2_000, max: 2_999 },
-  { label: "3,000+", min: 3_000, max: 999_999 },
+  { label: "1,500 sq ft or Less", min: 0, max: 1_500 },
+  { label: "1,501 to 2,000 sq ft", min: 1_501, max: 2_000 },
+  { label: "2,001 to 3,000 sq ft", min: 2_001, max: 3_000 },
+  { label: "3,001 sq ft or More", min: 3_001, max: 999_999 },
 ];
 
 // ── Main component: horizontal filter columns ──

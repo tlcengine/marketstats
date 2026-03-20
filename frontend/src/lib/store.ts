@@ -16,7 +16,7 @@ import type {
 import type { MetricKey } from "./constants";
 
 const DEFAULT_FILTERS: FilterState = {
-  propertyTypes: ["Residential"],
+  propertyTypes: ["Single Family Residence"],
   priceRange: null,
   construction: "all",
   bedrooms: "all",

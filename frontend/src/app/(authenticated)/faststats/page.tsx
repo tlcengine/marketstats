@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { HelpCircle } from "lucide-react";
 import useSWR from "swr";
 import { api, type FastStatsMetricAPI } from "@/lib/api";
 import { useStates, useCities, useCounties, useZips } from "@/lib/hooks";
@@ -73,6 +74,40 @@ function TrendArrow({ direction }: { direction: "up" | "down" | "flat" }) {
   );
 }
 
+// ── Tooltip "?" icon component ──
+
+function InfoTooltip({ text }: { text: string }) {
+  return (
+    <span className="group relative ml-1 inline-flex cursor-help align-middle">
+      <HelpCircle className="h-3 w-3 text-gray-400 transition-colors group-hover:text-gray-600" />
+      <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 whitespace-normal rounded bg-[#1B2D4B] px-2.5 py-1.5 text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
+        style={{ width: "max-content", maxWidth: 260 }}
+      >
+        {text}
+        <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-[#1B2D4B]" />
+      </span>
+    </span>
+  );
+}
+
+// ── Metric tooltip explanations ──
+
+const METRIC_TOOLTIPS: Record<string, string> = {
+  "MedianSalesPrice": "The middle sale price when all sales are ranked lowest to highest. Half sold for more, half for less",
+  "NewListings": "Properties newly listed for sale during the period",
+  "ClosedSales": "The number of transactions that closed (settled) during the period",
+  "Inventory": "The total number of properties currently available for sale (active listings)",
+  "PendingSales": "Properties under contract but not yet closed",
+  "DaysOnMarket": "Days on Market: The median number of days from listing to contract",
+  "PricePerSqFt": "The sale price divided by the home's total square footage, useful for comparing value across different-sized homes",
+  "DollarVolume": "The total dollar value of all closed transactions in the period",
+  "MonthsSupply": "How long it would take to sell all current inventory at the current sales pace. Under 6 months favors sellers, over 6 favors buyers",
+  "AbsorptionRate": "The percentage of available inventory that sold during the period. Higher rates indicate stronger demand",
+  "PctOfListPrice": "The percentage of the asking price that sellers actually received (sale price / list price)",
+  "AverageSalesPrice": "The arithmetic mean of all sale prices in the period",
+  "ListToSaleRatio": "The ratio of listings to sales. A higher number means more listings per sale, indicating a slower market",
+};
+
 // ── KPI Card ──
 
 function KPICard({ metric }: { metric: FastStatsMetricAPI }) {
@@ -82,8 +117,9 @@ function KPICard({ metric }: { metric: FastStatsMetricAPI }) {
 
   return (
     <div className="rounded-lg border border-[#D9D8D6] bg-white p-4 hover:shadow-md transition-shadow">
-      <p className="text-xs font-medium text-[#53555A] uppercase tracking-wide truncate">
-        {metric.label}
+      <p className="text-xs font-medium text-[#53555A] uppercase tracking-wide flex items-center">
+        <span className="truncate">{metric.label}</span>
+        {METRIC_TOOLTIPS[metric.metric] && <InfoTooltip text={METRIC_TOOLTIPS[metric.metric]} />}
       </p>
 
       <div className="mt-2 flex items-end justify-between gap-2">
@@ -519,7 +555,10 @@ export default function FastStatsPage() {
                       {MONTHS[fastStatsData.month - 1].slice(0, 3)} {fastStatsData.year}
                     </th>
                     <th className="text-right py-2 px-3 text-xs font-semibold text-[#53555A] uppercase">
-                      YoY Change
+                      <span className="inline-flex items-center justify-end">
+                        YoY Change
+                        <InfoTooltip text="Year-over-Year: Compares the current period to the same period one year ago" />
+                      </span>
                     </th>
                     <th className="text-right py-2 px-3 text-xs font-semibold text-[#53555A] uppercase">
                       {MONTHS[fastStatsData.month - 1].slice(0, 3)} {fastStatsData.year - 1}
@@ -535,7 +574,10 @@ export default function FastStatsPage() {
                         className={i % 2 === 0 ? "bg-[#FAF9F7]" : "bg-white"}
                       >
                         <td className="py-2 px-3 font-medium text-[#181818]">
-                          {m.label}
+                          <span className="inline-flex items-center">
+                            {m.label}
+                            {METRIC_TOOLTIPS[m.metric] && <InfoTooltip text={METRIC_TOOLTIPS[m.metric]} />}
+                          </span>
                         </td>
                         <td className="py-2 px-3 text-right font-semibold text-[#181818]">
                           {formatMetricValue(m.current_value, m.format)}

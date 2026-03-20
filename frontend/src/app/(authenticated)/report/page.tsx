@@ -17,6 +17,7 @@ import {
   Volume2,
   ChevronDown,
   Search,
+  HelpCircle,
 } from "lucide-react";
 import {
   BarChart,
@@ -41,6 +42,60 @@ const DARK = "#181818";
 const BODY = "#3A3A3A";
 const META = "#8A9BB5";
 const BORDER = "#D9D8D6";
+
+// ── Tooltip definitions ──
+
+const TERM_TOOLTIPS: Record<string, string> = {
+  "YoY": "Year-over-Year: Compares the current period to the same period one year ago",
+  "Trailing 12 Months": "The most recent 12-month period ending with the latest available data month (e.g., March 2025 through February 2026)",
+  "SP/LP Ratio": "Sale Price to List Price Ratio: The percentage of the asking price that sellers actually received",
+  "DOM": "Days on Market: The number of days from listing to contract",
+  "Months Supply": "Months of Supply: How long it would take to sell all current inventory at the current sales pace. Under 6 months favors sellers, over 6 favors buyers",
+  "Active Listings": "Properties currently available for sale",
+  "Pending Sales": "Properties under contract but not yet closed",
+  "Avg Days on Market": "Days on Market: The average number of days from listing to contract",
+  "Dollar Volume": "The total dollar value of all closed transactions in the period",
+  "Highest Sale": "The highest individual sale price recorded in the period",
+  "Median Price": "The middle sale price when all sales are ranked from lowest to highest. Half sold for more, half for less",
+  "Closed Sales": "The number of transactions that closed (settled) during the period",
+  "Avg DOM": "Average Days on Market: The average number of days from listing to contract",
+  "Avg Price": "The arithmetic mean of all sale prices in the period",
+  "Median Price (table)": "The middle sale price when all sales are ranked from lowest to highest",
+};
+
+// ── Tooltip "?" icon component ──
+
+function InfoTooltip({ text }: { text: string }) {
+  return (
+    <span className="group relative ml-1 inline-flex cursor-help align-middle">
+      <HelpCircle className="h-3 w-3 text-gray-400 transition-colors group-hover:text-gray-600" />
+      <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 whitespace-normal rounded bg-[#1B2D4B] px-2.5 py-1.5 text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
+        style={{ width: "max-content", maxWidth: 260 }}
+      >
+        {text}
+        <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-[#1B2D4B]" />
+      </span>
+    </span>
+  );
+}
+
+// ── Helper to get tooltip for a KPI label ──
+
+function getKPITooltip(label: string): string | null {
+  if (TERM_TOOLTIPS[label]) return TERM_TOOLTIPS[label];
+  // Fuzzy match for common labels
+  const lower = label.toLowerCase();
+  if (lower.includes("sp/lp") || lower.includes("sale price to list")) return TERM_TOOLTIPS["SP/LP Ratio"];
+  if (lower.includes("dom") || lower.includes("days on market")) return TERM_TOOLTIPS["DOM"];
+  if (lower.includes("months supply") || lower.includes("month supply")) return TERM_TOOLTIPS["Months Supply"];
+  if (lower.includes("active listing")) return TERM_TOOLTIPS["Active Listings"];
+  if (lower.includes("pending")) return TERM_TOOLTIPS["Pending Sales"];
+  if (lower.includes("dollar volume")) return TERM_TOOLTIPS["Dollar Volume"];
+  if (lower.includes("highest sale")) return TERM_TOOLTIPS["Highest Sale"];
+  if (lower.includes("median")) return TERM_TOOLTIPS["Median Price"];
+  if (lower.includes("closed sale")) return TERM_TOOLTIPS["Closed Sales"];
+  return null;
+}
 
 const PRICE_SEGMENTS: Record<string, number> = {
   "All Prices": 0,
@@ -155,13 +210,16 @@ function KPICard({
         ? "text-red-500"
         : "text-body-gray";
 
+  const tooltip = getKPITooltip(label);
+
   return (
     <div className="rounded-none border border-[#D9D8D6] bg-white p-4 shadow-sm">
       <p
-        className="text-[0.65rem] font-semibold uppercase tracking-widest"
+        className="flex items-center text-[0.65rem] font-semibold uppercase tracking-widest"
         style={{ color: META, fontFamily: "'Inter', sans-serif" }}
       >
         {label}
+        {tooltip && <InfoTooltip text={tooltip} />}
       </p>
       <p
         className="mt-1.5 text-xl font-bold"
@@ -173,7 +231,10 @@ function KPICard({
         <div className="mt-1.5 flex items-center gap-1.5">
           {dirIcon}
           <span className={`text-xs font-medium ${changeColor}`}>{change}</span>
-          <span className="text-[0.65rem]" style={{ color: META }}>YoY</span>
+          <span className="text-[0.65rem]" style={{ color: META }}>
+            YoY
+            <InfoTooltip text={TERM_TOOLTIPS["YoY"]} />
+          </span>
         </div>
       )}
     </div>
@@ -637,15 +698,24 @@ function YearlyTable({ data }: { data: YearlyDataAPI[] }) {
         <thead>
           <tr style={{ background: CREAM }}>
             {["Year", "Sales", "Avg Price", "Median Price", "Total Volume", "Avg DOM", "Max Sale"].map(
-              (h) => (
-                <th
-                  key={h}
-                  className="border-b border-[#D9D8D6] px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider"
-                  style={{ color: META }}
-                >
-                  {h}
-                </th>
-              )
+              (h) => {
+                const headerTooltips: Record<string, string> = {
+                  "Avg DOM": TERM_TOOLTIPS["Avg DOM"],
+                  "Total Volume": TERM_TOOLTIPS["Dollar Volume"],
+                };
+                return (
+                  <th
+                    key={h}
+                    className="border-b border-[#D9D8D6] px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider"
+                    style={{ color: META }}
+                  >
+                    <span className="inline-flex items-center">
+                      {h}
+                      {headerTooltips[h] && <InfoTooltip text={headerTooltips[h]} />}
+                    </span>
+                  </th>
+                );
+              }
             )}
           </tr>
         </thead>
@@ -693,7 +763,10 @@ function RecentSalesTable({
                   className="border-b border-[#D9D8D6] px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider"
                   style={{ color: META }}
                 >
-                  {h}
+                  <span className="inline-flex items-center">
+                    {h}
+                    {h === "DOM" && <InfoTooltip text={TERM_TOOLTIPS["DOM"]} />}
+                  </span>
                 </th>
               )
             )}
@@ -1060,7 +1133,7 @@ export default function MarketReportPage() {
 
           {/* ── Year-over-Year table ── */}
           <Divider />
-          <SectionTitle>Year-over-Year Data</SectionTitle>
+          <SectionTitle>Year-over-Year Data<InfoTooltip text={TERM_TOOLTIPS["YoY"]} /></SectionTitle>
           <YearlyTable data={report.charts.yearly} />
 
           {/* ── Recent notable sales ── */}
@@ -1072,7 +1145,7 @@ export default function MarketReportPage() {
           {report.price_distribution.length > 0 && (
             <>
               <Divider />
-              <SectionTitle>Price Distribution (Last 12 Months)</SectionTitle>
+              <SectionTitle>Price Distribution (Last 12 Months)<InfoTooltip text={TERM_TOOLTIPS["Trailing 12 Months"]} /></SectionTitle>
               <PriceDistributionChart data={report.price_distribution} />
             </>
           )}

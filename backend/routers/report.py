@@ -179,7 +179,7 @@ async def _get_all_closed(city: str, collection: str) -> pd.DataFrame:
         "StandardStatus": "Closed",
         "CloseDate": {"$exists": True, "$ne": None},
     }
-    fields = {"CloseDate": 1, "ClosePrice": 1, "DaysOnMarket": 1, "OriginalListPrice": 1}
+    fields = {"CloseDate": 1, "ClosePrice": 1, "DaysOnMarket": 1, "OriginalListPrice": 1, "ListPrice": 1}
     docs = []
     async for doc in db[collection].find(match, fields):
         docs.append(doc)
@@ -539,6 +539,17 @@ def _build_report_text(
 # ── Build recent sales ──
 
 
+def _safe_float(val) -> float | None:
+    """Convert to float, returning None for NaN/inf/missing values."""
+    if val is None or (isinstance(val, float) and (pd.isna(val) or np.isinf(val))):
+        return None
+    try:
+        f = float(val)
+        return None if pd.isna(f) or np.isinf(f) else f
+    except (TypeError, ValueError):
+        return None
+
+
 def _build_recent_sales(df: pd.DataFrame, limit: int = 15) -> list[dict]:
     closed = df.sort_values("CloseDate", ascending=False).head(limit)
     if closed.empty:
@@ -553,14 +564,15 @@ def _build_recent_sales(df: pd.DataFrame, limit: int = 15) -> list[dict]:
         if pd.notna(row.get("StreetSuffix")):
             addr_parts.append(str(row["StreetSuffix"]))
         address = " ".join(addr_parts) or "N/A"
-        close_price = float(row["ClosePrice"]) if pd.notna(row.get("ClosePrice")) else None
-        list_price = float(row["ListPrice"]) if pd.notna(row.get("ListPrice")) else None
+        close_price = _safe_float(row.get("ClosePrice"))
+        list_price = _safe_float(row.get("ListPrice"))
         close_date = row["CloseDate"].strftime("%b %d, %Y") if pd.notna(row.get("CloseDate")) else None
         beds = int(row["BedroomsTotal"]) if pd.notna(row.get("BedroomsTotal")) else None
         baths_key = "BathroomsTotalDecimal" if "BathroomsTotalDecimal" in row.index else "BathroomsTotalInteger"
-        baths = float(row[baths_key]) if pd.notna(row.get(baths_key)) else None
+        baths = _safe_float(row.get(baths_key))
         sqft_key = "LivingArea" if "LivingArea" in row.index and pd.notna(row.get("LivingArea")) else "BuildingAreaTotal"
-        sqft = int(row[sqft_key]) if pd.notna(row.get(sqft_key)) and row.get(sqft_key, 0) > 0 else None
+        sqft_val = _safe_float(row.get(sqft_key))
+        sqft = int(sqft_val) if sqft_val is not None and sqft_val > 0 else None
         dom = int(row["DaysOnMarket"]) if pd.notna(row.get("DaysOnMarket")) else None
         sales.append({
             "address": address,
@@ -696,12 +708,17 @@ async def get_report(
     p_vol = float(p12["ClosePrice"].sum()) if p_sales else 0
     r_max = float(r12["ClosePrice"].max()) if r_sales else 0
 
-    # SP/LP ratio
+    # SP/LP ratio — prefer OriginalListPrice, fall back to ListPrice
     sp_lp = 0.0
-    if "OriginalListPrice" in r12.columns and r_sales:
-        valid = r12[r12["OriginalListPrice"] > 0]
-        if len(valid):
-            sp_lp = float((valid["ClosePrice"] / valid["OriginalListPrice"]).mean())
+    if r_sales:
+        if "OriginalListPrice" in r12.columns:
+            valid = r12[(r12["OriginalListPrice"].notna()) & (r12["OriginalListPrice"] > 0)]
+            if len(valid):
+                sp_lp = float((valid["ClosePrice"] / valid["OriginalListPrice"]).mean())
+        if sp_lp == 0.0 and "ListPrice" in r12.columns:
+            valid = r12[(r12["ListPrice"].notna()) & (r12["ListPrice"] > 0)]
+            if len(valid):
+                sp_lp = float((valid["ClosePrice"] / valid["ListPrice"]).mean())
 
     # All-price segment analysis
     under_1m_r_count = under_1m_p_count = over_1m_r_count = over_1m_p_count = 0
