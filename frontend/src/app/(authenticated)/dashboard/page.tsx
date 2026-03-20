@@ -94,12 +94,17 @@ export default function DashboardPage() {
   const years = useDashboardStore((s) => s.years);
   const rolling = useDashboardStore((s) => s.rolling);
   const statType = useDashboardStore((s) => s.statType);
+  const perMetricStatType = useDashboardStore((s) => s.perMetricStatType);
   const legendVisible = useDashboardStore((s) => s.legendVisible);
   const mapVisible = useDashboardStore((s) => s.mapVisible);
   const drawMode = useDashboardStore((s) => s.drawMode);
   const toggleDrawMode = useDashboardStore((s) => s.toggleDrawMode);
+  const filtersVisible = useDashboardStore((s) => s.filtersVisible);
 
   const [mobileFiltersOpen, setMobileFiltersOpen] = React.useState(false);
+
+  // Resolve the effective stat type for the current metric (per-metric overrides global)
+  const effectiveStatType = perMetricStatType[activeMetric] ?? statType;
   const [embedModalOpen, setEmbedModalOpen] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -126,9 +131,9 @@ export default function DashboardPage() {
           geoType: a.geoType,
           geoValues: a.geoValues,
           years,
-          statType,
+          statType: effectiveStatType,
         })),
-    [areas, activeMetric, years, statType]
+    [areas, activeMetric, years, effectiveStatType]
   );
 
   const quickFactsParams = useMemo(
@@ -140,9 +145,9 @@ export default function DashboardPage() {
           metric: activeMetric,
           geoType: a.geoType,
           geoValues: a.geoValues,
-          statType,
+          statType: effectiveStatType,
         })),
-    [areas, activeMetric, statType]
+    [areas, activeMetric, effectiveStatType]
   );
 
   // Fetch real data from API (falls back to mock on error)
@@ -293,24 +298,26 @@ export default function DashboardPage() {
         </div>
 
         {/* ── 2. FILTER COLUMNS (horizontal) ── */}
-        <div className="border-b border-gray-100 bg-white px-4 lg:px-6">
-          {/* Mobile toggle */}
-          <div className="py-2 lg:hidden">
-            <MobileFilterToggle
-              open={mobileFiltersOpen}
-              onToggle={() => setMobileFiltersOpen(!mobileFiltersOpen)}
-            />
-          </div>
+        {filtersVisible && (
+          <div className="border-b border-gray-100 bg-white px-4 lg:px-6">
+            {/* Mobile toggle */}
+            <div className="py-2 lg:hidden">
+              <MobileFilterToggle
+                open={mobileFiltersOpen}
+                onToggle={() => setMobileFiltersOpen(!mobileFiltersOpen)}
+              />
+            </div>
 
-          {/* Filters - always visible on desktop, toggled on mobile */}
-          <div
-            className={`${
-              mobileFiltersOpen ? "block" : "hidden"
-            } lg:block`}
-          >
-            <FilterSidebar />
+            {/* Filters - always visible on desktop, toggled on mobile */}
+            <div
+              className={`${
+                mobileFiltersOpen ? "block" : "hidden"
+              } lg:block`}
+            >
+              <FilterSidebar />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ── 3. CHART CONTROLS (right-aligned) ── */}
         <div className="border-b border-gray-100 bg-white px-4 lg:px-6">

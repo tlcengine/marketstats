@@ -341,6 +341,10 @@ function AreaTab({
 export default function AreaSelector() {
   const areas = useDashboardStore((s) => s.areas);
   const addArea = useDashboardStore((s) => s.addArea);
+  const combineAreas = useDashboardStore((s) => s.combineAreas);
+  const toggleCombineAreas = useDashboardStore((s) => s.toggleCombineAreas);
+  const filtersVisible = useDashboardStore((s) => s.filtersVisible);
+  const toggleFiltersVisible = useDashboardStore((s) => s.toggleFiltersVisible);
   const [activeTab, setActiveTab] = useState(0);
 
   return (
@@ -381,6 +385,63 @@ export default function AreaSelector() {
             ADD AN AREA
           </button>
         )}
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Combine button */}
+        {areas.length > 1 && (
+          <button
+            onClick={toggleCombineAreas}
+            className={`mb-0.5 flex items-center gap-1 whitespace-nowrap rounded px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
+              combineAreas
+                ? "bg-[#3d6b5e] text-white"
+                : "border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+            }`}
+            title="Combine all selected areas into one dataset"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M8 12h8" />
+              <path d="M12 8v8" />
+            </svg>
+            Combine
+          </button>
+        )}
+
+        {/* Filters toggle button */}
+        <button
+          onClick={toggleFiltersVisible}
+          className={`mb-0.5 flex items-center gap-1 whitespace-nowrap rounded px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
+            filtersVisible
+              ? "bg-[#3d6b5e] text-white"
+              : "border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+          }`}
+          title="Toggle filter panel visibility"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
+          Filters
+        </button>
       </div>
     </div>
   );

@@ -100,9 +100,11 @@ export interface DashboardState {
   rolling: RollingWindow;
   setRolling: (rolling: RollingWindow) => void;
 
-  // Stat type
+  // Stat type (per-metric overrides for metrics with M/A toggle)
   statType: StatType;
   setStatType: (type: StatType) => void;
+  perMetricStatType: Record<string, StatType>;
+  setPerMetricStatType: (metric: string, type: StatType) => void;
 
   // Breakout
   breakoutField: BreakoutField;
@@ -141,4 +143,12 @@ export interface DashboardState {
   // Custom ranges (price / sqft)
   customRanges: CustomRanges;
   setCustomRanges: (ranges: Partial<CustomRanges>) => void;
+
+  // Combine areas toggle
+  combineAreas: boolean;
+  toggleCombineAreas: () => void;
+
+  // Filters visibility toggle
+  filtersVisible: boolean;
+  toggleFiltersVisible: () => void;
 }

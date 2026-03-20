@@ -87,8 +87,17 @@ export const COLORS = {
   bgLight: "#f6f8fa",
 } as const;
 
-// InfoSparks tab/chart colors for up to 4 areas
-export const AREA_COLORS = ["#1a4b7f", "#d4553a", "#2d8a4e", "#7b7b7b"];
+// Metrics that support a Median/Average sub-toggle (like InfoSparks)
+export const METRICS_WITH_MA_TOGGLE: MetricKey[] = [
+  "MedianSalesPrice",
+  "DaysOnMarket",
+  "PctOfListPrice",
+  "PricePerSqFt",
+  "ShowsToPending",
+];
+
+// InfoSparks tab/chart colors for up to 4 areas (orange first, matching InfoSparks)
+export const AREA_COLORS = ["#E8871E", "#d4553a", "#2d8a4e", "#7b7b7b"];
 
 // Lighter backgrounds for area tabs
 export const AREA_TAB_BG = ["#e8f0fa", "#fce8e4", "#e4f5ea", "#efefef"];

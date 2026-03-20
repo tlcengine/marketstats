@@ -131,6 +131,7 @@ const PROPERTY_TYPES = [
   "Condo",
   "Townhouse",
   "Multi-Family",
+  "Stock Cooperative",
 ];
 
 const BEDROOM_OPTIONS = [
@@ -237,7 +238,7 @@ export default function FilterSidebar() {
       >
         {/* PROPERTY TYPE */}
         <div className="min-w-[140px] shrink-0 border-r border-gray-100 px-3 py-2">
-          <FilterColumnHeader label="Property Type" breakoutKey="propertyType" />
+          <FilterColumnHeader label={`Property Type (${filters.propertyTypes.length}/${PROPERTY_TYPES.length})`} breakoutKey="propertyType" />
           <CheckboxGroup
             options={PROPERTY_TYPES}
             selected={filters.propertyTypes}

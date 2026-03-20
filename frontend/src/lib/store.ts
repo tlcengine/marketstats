@@ -89,6 +89,13 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   statType: "median" as StatType,
   setStatType: (type: StatType) => set({ statType: type }),
 
+  // Per-metric stat type overrides (for metrics with M/A toggle)
+  perMetricStatType: {} as Record<string, StatType>,
+  setPerMetricStatType: (metric: string, type: StatType) =>
+    set((state) => ({
+      perMetricStatType: { ...state.perMetricStatType, [metric]: type },
+    })),
+
   // Breakout
   breakoutField: null as BreakoutField,
   setBreakoutField: (field: BreakoutField) =>
@@ -166,4 +173,14 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     set((state) => ({
       customRanges: { ...state.customRanges, ...patch },
     })),
+
+  // Combine areas
+  combineAreas: false,
+  toggleCombineAreas: () =>
+    set((state) => ({ combineAreas: !state.combineAreas })),
+
+  // Filters visibility
+  filtersVisible: true,
+  toggleFiltersVisible: () =>
+    set((state) => ({ filtersVisible: !state.filtersVisible })),
 }));

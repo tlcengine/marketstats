@@ -6,26 +6,25 @@ import type { MetricKey } from "@/lib/constants";
 import { formatMetricValue, formatYoYChange, formatMonthFull } from "@/lib/format";
 import type { QuickFactData } from "@/lib/types";
 
-// ── Loading skeleton ──
+// -- Loading skeleton --
 
 export function QuickFactsSkeleton() {
   return (
     <div className="flex flex-col gap-3">
-      <div className="h-4 w-24 animate-pulse rounded bg-gray-200" />
       {[0, 1].map((i) => (
-        <div key={i} className="animate-pulse rounded-lg bg-gray-50 p-3">
-          <div className="mb-2 h-3 w-20 rounded bg-gray-200" />
-          <div className="mb-1 h-6 w-28 rounded bg-gray-200" />
-          <div className="h-3 w-16 rounded bg-gray-200" />
+        <div key={i} className="animate-pulse rounded bg-gray-100 p-3">
+          <div className="mb-2 h-3 w-16 rounded bg-gray-200" />
+          <div className="mb-1 h-5 w-24 rounded bg-gray-200" />
+          <div className="h-3 w-14 rounded bg-gray-200" />
         </div>
       ))}
     </div>
   );
 }
 
-// ── Single fact card ──
+// -- Single callout card with left-pointing arrow --
 
-function FactCard({
+function CalloutCard({
   fact,
   metric,
   index,
@@ -39,74 +38,70 @@ function FactCard({
   const hasYoy = fact.yoyChange !== null;
   const yoyStr = hasYoy ? formatYoYChange(fact.yoyChange!) : null;
   const isPositive = hasYoy && fact.yoyChange! >= 0;
+  const monthLabel = fact.latestMonth
+    ? formatMonthFull(fact.latestMonth + "-01")
+    : "";
 
   return (
-    <div
-      className="rounded-lg p-3"
-      style={{
-        backgroundColor: "#FAF9F7",
-        borderLeft: `3px solid ${color}`,
-      }}
-    >
-      {/* Area name */}
-      <p
-        className="mb-1 truncate text-[11px] font-medium uppercase tracking-wide"
-        style={{ color: "#53555A" }}
-      >
-        {fact.areaName}
-      </p>
+    <div className="relative flex items-stretch">
+      {/* Left-pointing arrow indicator */}
+      <div className="flex items-center">
+        <div
+          style={{
+            width: 0,
+            height: 0,
+            borderTop: "10px solid transparent",
+            borderBottom: "10px solid transparent",
+            borderRight: `10px solid ${color}`,
+          }}
+        />
+      </div>
 
-      {/* Value */}
-      <p
-        className="text-xl font-bold leading-tight"
+      {/* Callout body */}
+      <div
+        className="flex-1 rounded-r-md px-3 py-2"
         style={{
-          fontFamily: "'Playfair Display', Georgia, serif",
-          color: "#181818",
+          backgroundColor: color,
+          minWidth: 0,
         }}
       >
-        {valueStr}
-      </p>
+        {/* Month label */}
+        {monthLabel && (
+          <p className="text-[9px] font-medium uppercase tracking-wider text-white/60">
+            {monthLabel}
+          </p>
+        )}
 
-      {/* YoY change */}
-      {hasYoy && (
-        <div className="mt-1 flex items-center gap-1">
+        {/* Area name */}
+        <p className="truncate text-[10px] font-semibold text-white/80">
+          {fact.areaName}
+        </p>
+
+        {/* Value + YoY row */}
+        <div className="mt-0.5 flex items-baseline gap-2">
           <span
-            className={`text-xs font-semibold ${
-              isPositive ? "text-green-600" : "text-red-600"
-            }`}
+            className="text-lg font-bold leading-tight text-white"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
-            {isPositive ? (
-              <svg
-                className="mr-0.5 inline h-3 w-3"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
-              </svg>
-            ) : (
-              <svg
-                className="mr-0.5 inline h-3 w-3"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path d="M12 20l1.41-1.41L7.83 13H20v-2H7.83l5.58-5.59L12 4l-8 8z" />
-              </svg>
-            )}
-            {yoyStr}
+            {valueStr}
           </span>
-          <span className="text-[10px] text-gray-400">YoY</span>
-        </div>
-      )}
 
-      {/* Month label */}
-      <p className="mt-1 text-[10px] text-gray-400">
-        {formatMonthFull(fact.latestMonth)}
-      </p>
+          {hasYoy && (
+            <span
+              className={`text-[11px] font-semibold ${
+                isPositive ? "text-green-200" : "text-red-200"
+              }`}
+            >
+              {isPositive ? "\u2191" : "\u2193"} {yoyStr}
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
-// ── Main component ──
+// -- Main component --
 
 interface QuickFactsProps {
   facts: QuickFactData[];
@@ -131,9 +126,14 @@ export default function QuickFacts({ facts, metric, loading }: QuickFactsProps) 
         Quick Facts
       </p>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2.5">
         {facts.map((fact, idx) => (
-          <FactCard key={fact.areaId} fact={fact} metric={metric} index={idx} />
+          <CalloutCard
+            key={fact.areaId}
+            fact={fact}
+            metric={metric}
+            index={idx}
+          />
         ))}
 
         {facts.length === 0 && (

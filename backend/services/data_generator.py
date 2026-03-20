@@ -120,12 +120,15 @@ def get_sales_price(
     return sp[["Sales Price", "Month"]]
 
 
-def get_dom(fl: pd.DataFrame) -> pd.DataFrame:
+def get_dom(
+    fl: pd.DataFrame, use_average: bool = False
+) -> pd.DataFrame:
     grouped = fl.groupby(
         [fl["CloseDate"].dt.year.rename("year"),
          fl["CloseDate"].dt.month.rename("month")]
     )[["DaysOnMarket"]]
-    dom = grouped.median(numeric_only=True).reset_index()
+    dom = grouped.mean(numeric_only=True) if use_average else grouped.median(numeric_only=True)
+    dom = dom.reset_index()
     dom["Month"] = pd.to_datetime(
         [f"{int(r.year)}-{int(r.month)}" for _, r in dom.iterrows()]
     )
@@ -133,13 +136,16 @@ def get_dom(fl: pd.DataFrame) -> pd.DataFrame:
     return dom[["Days on Market", "Month"]]
 
 
-def get_ppsqft(fl: pd.DataFrame) -> pd.DataFrame:
+def get_ppsqft(
+    fl: pd.DataFrame, use_average: bool = False
+) -> pd.DataFrame:
     p = fl[fl["ListPricePerSQFT"] != np.inf].copy()
     grouped = p.groupby(
         [p["CloseDate"].dt.year.rename("year"),
          p["CloseDate"].dt.month.rename("month")]
     )[["ListPricePerSQFT"]]
-    result = grouped.median(numeric_only=True).reset_index()
+    result = grouped.mean(numeric_only=True) if use_average else grouped.median(numeric_only=True)
+    result = result.reset_index()
     result["Month"] = pd.to_datetime(
         [f"{int(r.year)}-{int(r.month)}" for _, r in result.iterrows()]
     )
@@ -161,7 +167,9 @@ def get_orig_price(fl: pd.DataFrame) -> pd.DataFrame:
     return op[["Original List Price", "Month"]]
 
 
-def get_pct_orig_price(fl: pd.DataFrame) -> pd.DataFrame:
+def get_pct_orig_price(
+    fl: pd.DataFrame, use_average: bool = False
+) -> pd.DataFrame:
     pop = fl[["CloseDate", "ClosePrice", "OriginalListPrice"]].replace(0.0, np.nan).dropna()
     if pop.empty:
         return pd.DataFrame(columns=["Percent of Original List Price", "Month"])
@@ -171,7 +179,8 @@ def get_pct_orig_price(fl: pd.DataFrame) -> pd.DataFrame:
         [pop["CloseDate"].dt.year.rename("year"),
          pop["CloseDate"].dt.month.rename("month")]
     )[["pct"]]
-    result = grouped.mean(numeric_only=True).reset_index()
+    result = grouped.mean(numeric_only=True) if use_average else grouped.median(numeric_only=True)
+    result = result.reset_index()
     result["Month"] = pd.to_datetime(
         [f"{int(r.year)}-{int(r.month)}" for _, r in result.iterrows()]
     )
@@ -247,8 +256,10 @@ def get_months_supply(fl: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(records) if records else pd.DataFrame(columns=["Months Supply", "Month"])
 
 
-def get_shows_to_pending(fl: pd.DataFrame) -> pd.DataFrame:
-    """Average number of showings before a listing goes pending.
+def get_shows_to_pending(
+    fl: pd.DataFrame, use_average: bool = False
+) -> pd.DataFrame:
+    """Number of showings before a listing goes pending (median or average).
     Requires ShowingsCount field in the data. Returns empty if not available."""
     if "ShowingsCount" not in fl.columns:
         return pd.DataFrame(columns=["Shows to Pending", "Month"])
@@ -261,7 +272,8 @@ def get_shows_to_pending(fl: pd.DataFrame) -> pd.DataFrame:
         [ps["OnMarketDate"].dt.year.rename("year"),
          ps["OnMarketDate"].dt.month.rename("month")]
     )[["ShowingsCount"]]
-    result = grouped.mean(numeric_only=True).reset_index()
+    result = grouped.mean(numeric_only=True) if use_average else grouped.median(numeric_only=True)
+    result = result.reset_index()
     result["Month"] = pd.to_datetime(
         [f"{int(r.year)}-{int(r.month)}" for _, r in result.iterrows()]
     )
@@ -293,23 +305,26 @@ def get_shows_per_listing(fl: pd.DataFrame) -> pd.DataFrame:
 
 # ── Dispatcher ──
 
+# Metrics that support median/average toggle (keyed by metric key)
+_METRICS_WITH_MA = {"MedianSalesPrice", "DaysOnMarket", "PctOfListPrice", "PricePerSqFt", "ShowsToPending"}
+
 _METRIC_FUNC_MAP = {
-    "MedianSalesPrice": lambda fl: get_sales_price(fl, use_average=False),
-    "AverageSalesPrice": lambda fl: get_sales_price(fl, use_average=True),
-    "NewListings": get_new_listings,
-    "ClosedSales": get_closed_sales,
-    "Inventory": get_homes_for_sale,
-    "PendingSales": get_pending_sales,
-    "DaysOnMarket": get_dom,
-    "PricePerSqFt": get_ppsqft,
-    "OriginalListPrice": get_orig_price,
-    "PctOfListPrice": get_pct_orig_price,
-    "ListToSaleRatio": get_pct_last_price,
-    "DollarVolume": get_dollar_vol,
-    "AbsorptionRate": get_absorption,
-    "MonthsSupply": get_months_supply,
-    "ShowsToPending": get_shows_to_pending,
-    "ShowsPerListing": get_shows_per_listing,
+    "MedianSalesPrice": lambda fl, avg=False: get_sales_price(fl, use_average=avg),
+    "AverageSalesPrice": lambda fl, avg=False: get_sales_price(fl, use_average=True),
+    "NewListings": lambda fl, avg=False: get_new_listings(fl),
+    "ClosedSales": lambda fl, avg=False: get_closed_sales(fl),
+    "Inventory": lambda fl, avg=False: get_homes_for_sale(fl),
+    "PendingSales": lambda fl, avg=False: get_pending_sales(fl),
+    "DaysOnMarket": lambda fl, avg=False: get_dom(fl, use_average=avg),
+    "PricePerSqFt": lambda fl, avg=False: get_ppsqft(fl, use_average=avg),
+    "OriginalListPrice": lambda fl, avg=False: get_orig_price(fl),
+    "PctOfListPrice": lambda fl, avg=False: get_pct_orig_price(fl, use_average=avg),
+    "ListToSaleRatio": lambda fl, avg=False: get_pct_last_price(fl),
+    "DollarVolume": lambda fl, avg=False: get_dollar_vol(fl),
+    "AbsorptionRate": lambda fl, avg=False: get_absorption(fl),
+    "MonthsSupply": lambda fl, avg=False: get_months_supply(fl),
+    "ShowsToPending": lambda fl, avg=False: get_shows_to_pending(fl, use_average=avg),
+    "ShowsPerListing": lambda fl, avg=False: get_shows_per_listing(fl),
 }
 
 
@@ -341,7 +356,7 @@ def generate_metric_data(
     for fl, label in zip(listings_by_area, area_labels):
         if fl.empty:
             continue
-        result = func(fl)
+        result = func(fl, avg=use_average)
         if not result.empty:
             result["Label"] = label
             frames.append(result)
